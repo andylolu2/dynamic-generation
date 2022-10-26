@@ -1,0 +1,14 @@
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# pyenv
+.python-version
+
+# experiment tracking
+wandb/
+runs/
+
+# vscode
+.vscode/
