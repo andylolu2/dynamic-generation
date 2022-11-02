@@ -1,9 +1,8 @@
 from typing import Iterable, Iterator
 
 from dynamic_generation.datasets.base import BaseDataModule
-
-from .parity import ParityDataModule
-from .swiss_roll import SwissRollDataModule
+from dynamic_generation.datasets.parity import ParityDataModule
+from dynamic_generation.datasets.swiss_roll import SwissRollDataModule
 
 
 def load_dataset(

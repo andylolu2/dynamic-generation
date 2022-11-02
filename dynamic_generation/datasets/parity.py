@@ -12,27 +12,41 @@ from dynamic_generation.datasets.utils import infinite_loader
 class ParityDataModule(BaseDataModule):
     dim: int = 64
 
-    def train_loader(self, batch_size: int, size: int = -1) -> Iterator:
+    def train_loader(
+        self,
+        batch_size: int,
+        size: int,
+        min_n: int,
+        max_n: int,
+    ) -> Iterator:
         if size < 0:
-            ds = InfiniteParity(self.dim)
+            ds = InfiniteParity(self.dim, min_n, max_n)
             loader = DataLoader(ds, batch_size=batch_size)
             loader = iter(loader)
         else:
-            ds = Parity(self.dim, size)
+            ds = Parity(self.dim, size, min_n, max_n)
             loader = DataLoader(ds, batch_size=batch_size, shuffle=True, drop_last=True)
             loader = infinite_loader(loader)
         return loader
 
-    def eval_loader(self, batch_size: int, size: int) -> Iterable:
+    def eval_loader(
+        self,
+        batch_size: int,
+        size: int,
+        min_n: int,
+        max_n: int,
+    ) -> Iterable:
         assert size > 0
-        ds = Parity(self.dim, size)
+        ds = Parity(self.dim, size, min_n, max_n)
         loader = DataLoader(ds, batch_size=batch_size, shuffle=True, drop_last=True)
         return loader
 
 
-def build_one(dim: int):
+def build_one(dim: int, min_n: int, max_n: int):
+    assert 0 <= min_n <= max_n <= dim
+
     # n ~ U(1, self.dim), where n is the number of 1 or -1
-    thresh = torch.randint(1, dim + 1, size=())
+    thresh = torch.randint(min_n, max_n + 1, size=())
     x = torch.arange(dim) < thresh
 
     # set x randomly to 1 or -1
@@ -50,9 +64,11 @@ def build_one(dim: int):
 
 
 class InfiniteParity(IterableDataset):
-    def __init__(self, dim: int = 64):
+    def __init__(self, dim: int = 64, min_n: int = 1, max_n: int | None = None):
         super().__init__()
         self.dim = dim
+        self.min_n = min_n
+        self.max_n = dim if max_n is None else max_n
 
     def __iter__(self):
         while True:
@@ -60,10 +76,18 @@ class InfiniteParity(IterableDataset):
 
 
 class Parity(Dataset):
-    def __init__(self, dim: int = 64, size: int = 5000):
+    def __init__(
+        self,
+        dim: int = 64,
+        size: int = 5000,
+        min_n: int = 1,
+        max_n: int | None = None,
+    ):
         super().__init__()
         self.dim = dim
         self.size = size
+        self.min_n = min_n
+        self.max_n = dim if max_n is None else max_n
         self.xs, self.ys = self._build()
 
     def __len__(self):
@@ -75,7 +99,7 @@ class Parity(Dataset):
     def _build(self):
         xs, ys = [], []
         for _ in range(self.size):
-            x, y = build_one(self.dim)
+            x, y = build_one(self.dim, self.min_n, self.max_n)
             xs.append(x)
             ys.append(y)
 
@@ -89,5 +113,5 @@ if __name__ == "__main__":
     ds = Parity(dim=8)
     print(ds[:10])
 
-    ds = iter(InfiniteParity(dim=8))
+    ds = iter(InfiniteParity(dim=8, min_n=1, max_n=4))
     print(next(ds))

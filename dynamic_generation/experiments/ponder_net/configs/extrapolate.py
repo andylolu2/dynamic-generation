@@ -6,15 +6,16 @@ from dynamic_generation.experiments.utils.config import get_base_config
 def get_config():
     config = get_base_config("ponder-net-repro")
 
-    ds_dim = FieldReference(8)
+    ds_dim = FieldReference(96)
 
-    config.steps = 1000000
+    config.steps = -1
     config.restore = placeholder(str)
+    config.tags = ("extrapolate",)
     config.trainer_config = dict(
         dry_run=config.get_ref("dry_run"),
-        log_every=5,
-        save_every=-1,
-        eval_every=10,
+        log_every=1000,
+        save_every=5000,
+        eval_every=5000,
         save=dict(
             dir="model",
             ext=".pt",
@@ -27,9 +28,9 @@ def get_config():
             ),
             ponder_net_kwargs=dict(
                 epsilon=0.05,
-                lambda_p=0.1,
+                lambda_p=0.5,
                 beta=0.01,
-                N_max=10,
+                N_max=20,
             ),
         ),
         optimizer_kwargs=dict(
@@ -40,15 +41,15 @@ def get_config():
                 dim=ds_dim,
             ),
             train_kwargs=dict(
-                batch_size=8,
+                batch_size=128,
                 size=-1,
                 min_n=1,
-                max_n=ds_dim,
+                max_n=ds_dim // 2,
             ),
             eval_kwargs=dict(
-                batch_size=8,
-                size=80,
-                min_n=1,
+                batch_size=256,
+                size=51200,
+                min_n=(ds_dim // 2) + 1,
                 max_n=ds_dim,
             ),
         ),
