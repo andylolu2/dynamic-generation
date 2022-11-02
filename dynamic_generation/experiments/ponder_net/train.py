@@ -91,7 +91,7 @@ class Trainer(BaseTrainer):
 
     def _step(self, item):
         with self.metrics.capture("train"):
-            xs, ys_target = item
+            xs, ys_target = item["data"]
             xs, ys_target = self.cast(xs, ys_target)
 
             ys, ps = self.model(xs)
@@ -109,6 +109,8 @@ class Trainer(BaseTrainer):
 
             self.log("accuracy", accuracy.item(), "mean")
             self.log("grad_norm", grad_norm.item(), "mean")
+            if "epoch" in item:
+                self.log("epoch", item["epoch"])
 
     @torch.inference_mode()
     def evaluate(self):
@@ -116,7 +118,8 @@ class Trainer(BaseTrainer):
 
         self.model.eval()
 
-        for xs, ys_target in self.eval_loader:
+        for item in self.eval_loader:
+            xs, ys_target = item["data"]
             xs, ys_target = self.cast(xs, ys_target)
             ys, ps = self.model(xs)
 

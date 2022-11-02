@@ -47,7 +47,7 @@ class SwissRoll(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        return self.data[idx]
+        return {"data": self.data[idx]}
 
     def _build(self):
         t = self.t_len * np.random.rand(self.size) + self.t_offset
@@ -60,7 +60,7 @@ class SwissRoll(Dataset):
 if __name__ == "__main__":
     ds = SwissRoll(1000)
 
-    plt.scatter(x=ds[:, 0], y=ds[:, 1], s=2)
+    plt.scatter(x=ds[:, 0]["data"], y=ds[:, 1]["data"], s=2)
     plt.gca().set_aspect("equal")
 
     plt.show()

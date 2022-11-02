@@ -56,7 +56,7 @@ class InfiniteParity(IterableDataset):
 
     def __iter__(self):
         while True:
-            yield build_one(self.dim)
+            yield {"data": build_one(self.dim, self.min_n, self.max_n)}
 
 
 class Parity(Dataset):
@@ -70,7 +70,7 @@ class Parity(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        return self.xs[idx], self.ys[idx]
+        return {"data": (self.xs[idx], self.ys[idx])}
 
     def _build(self):
         xs, ys = [], []
