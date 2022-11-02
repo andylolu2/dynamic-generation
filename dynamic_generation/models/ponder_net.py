@@ -145,7 +145,7 @@ class PonderNet(nn.Module):
         return geometric(self.lambda_p, length)
 
     def l_reg(self, ps: TensorType["batch", "N"]) -> TensorType["batch"]:
-        prior = self.prior(ps.shape[1])
+        prior = self.prior(ps.shape[1]).to(ps.device)
         return F.kl_div((ps + 1e-6).log(), prior, reduction="none").sum(-1)
 
     def loss(
