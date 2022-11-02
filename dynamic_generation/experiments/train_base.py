@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from logging import Formatter
 from pathlib import Path
 from typing import Callable, Iterable, Iterator
@@ -28,7 +27,13 @@ def run_exp(main_fn: Callable[[FrozenConfigDict], None]):
 
     logging.info(config)
 
-    with wandb_run(config.project_name, config.dry_run, config):  # type: ignore
+    run = wandb_run(
+        project=config.project_name,
+        dry_run=config.dry_run,  # type: ignore
+        config=config.to_dict(),
+        tags=config.tags,
+    )
+    with run:
         main_fn(config)
 
 
@@ -94,6 +99,8 @@ class BaseTrainer:
                 state_to_save[k] = v
         torch.save(state_to_save, path)
 
+        logging.info(f"Saved states {list(state_to_save.keys())} to {path}")
+
     def load(self, path: Path, map_location: str | None = None):
         saved_state = torch.load(path, map_location=map_location)
         assert set(saved_state.keys()) == set(self.train_state.keys())
@@ -103,3 +110,5 @@ class BaseTrainer:
                 v.load_state_dict(saved_state[k])
             else:
                 self.train_state[k] = saved_state[k]
+
+        logging.info(f"Restored states {list(saved_state.keys())} from {path}")
