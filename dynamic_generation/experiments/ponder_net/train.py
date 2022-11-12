@@ -11,7 +11,12 @@ from torchmetrics.functional.classification import binary_accuracy
 import wandb
 from dynamic_generation.datasets.main import load_dataset
 from dynamic_generation.experiments.train_base import BaseTrainer, run_exp
-from dynamic_generation.experiments.utils.actions import Action, periodic
+from dynamic_generation.experiments.utils.actions import (
+    Action,
+    PeriodicEvalAction,
+    PeriodicLogAction,
+    PeriodicSaveAction,
+)
 from dynamic_generation.experiments.utils.logging import print_metrics
 from dynamic_generation.experiments.utils.metrics import weighted_binary_accuracy
 from dynamic_generation.models.ponder_net import PonderNet, RnnPonderModule
@@ -49,35 +54,25 @@ class Trainer(BaseTrainer):
         return load_dataset("parity", **self.config.dataset_kwargs)
 
     def initialize_actions(self) -> list[Action]:
-        @periodic(self.config.log_every)
-        def log_action(step: int):
-            metrics = self.metrics.collect(group="train")
-            print_metrics(metrics, step)
-            if not self.config.dry_run:
-                wandb.log(metrics, step=step)
-
-        @periodic(self.config.save_every)
-        def save_action(step: int):
-            if not self.config.dry_run:
-                save_dir = self.exp_dir / self.config.save.dir
-                save_dir.mkdir(parents=True, exist_ok=True)
-
-                # unlink old checkpoints
-                for file in save_dir.glob(f"*{self.config.save.ext}"):
-                    file.unlink()
-
-                # save new checkpoint
-                file_name = str(step) + self.config.save.ext
-                self.save(save_dir / file_name)
-
-        @periodic(self.config.eval_every)
-        def eval_action(step: int):
-            with self.metrics.capture("eval"):
-                self.evaluate()
-            metrics = self.metrics.collect(group="eval")
-            print_metrics(metrics, step)
-            if not self.config.dry_run:
-                wandb.log(metrics, step=step)
+        log_action = PeriodicLogAction(
+            interval=self.config.log_every,
+            metrics=self.metrics,
+            group="train",
+            dry_run=self.config.dry_run,
+        )
+        save_action = PeriodicSaveAction(
+            interval=self.config.save_every,
+            save_dir=self.exp_dir / self.config.save.dir,
+            save_ext=self.config.save.ext,
+            save_fn=self.save,
+            dry_run=self.config.dry_run,
+        )
+        eval_action = PeriodicEvalAction(
+            interval=self.config.eval_every,
+            metrics=self.metrics,
+            eval_fn=self.evaluate,
+            dry_run=self.config.dry_run,
+        )
 
         return [log_action, save_action, eval_action]
 
