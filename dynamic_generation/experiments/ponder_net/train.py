@@ -1,15 +1,13 @@
 from pathlib import Path
-from typing import Iterable, Iterator
 
 import torch
 import torch.nn.functional as F
+import wandb
 from absl import app, logging
 from torch import nn
 from torch.optim import Adam
 from torchmetrics.functional.classification import binary_accuracy
 
-import wandb
-from dynamic_generation.datasets.main import load_dataset
 from dynamic_generation.experiments.train_base import BaseTrainer, run_exp
 from dynamic_generation.experiments.utils.actions import (
     Action,
@@ -17,15 +15,19 @@ from dynamic_generation.experiments.utils.actions import (
     PeriodicLogAction,
     PeriodicSaveAction,
 )
-from dynamic_generation.experiments.utils.logging import print_metrics
 from dynamic_generation.experiments.utils.metrics import weighted_binary_accuracy
 from dynamic_generation.models.ponder_net import PonderNet, RnnPonderModule
 from dynamic_generation.types import TrainState
 
 
 class Trainer(BaseTrainer):
-    def __init__(self, config, *args, **kwargs):
-        super().__init__(config, *args, **kwargs)
+    @property
+    def model(self) -> PonderNet:
+        return self.train_state["model"]
+
+    @property
+    def optimizer(self) -> Adam:
+        return self.train_state["optimizer"]
 
     def initialize_state(self) -> TrainState:
         state = super().initialize_state()
@@ -50,9 +52,6 @@ class Trainer(BaseTrainer):
         state["optimizer"] = optimizer
         return state
 
-    def initialize_dataloader(self) -> tuple[Iterator, Iterable]:
-        return load_dataset("parity", **self.config.dataset_kwargs)
-
     def initialize_actions(self) -> list[Action]:
         log_action = PeriodicLogAction(
             interval=self.config.log_every,
@@ -75,14 +74,6 @@ class Trainer(BaseTrainer):
         )
 
         return [log_action, save_action, eval_action]
-
-    @property
-    def model(self) -> PonderNet:
-        return self.train_state["model"]
-
-    @property
-    def optimizer(self) -> Adam:
-        return self.train_state["optimizer"]
 
     def _step(self, item):
         with self.metrics.capture("train"):

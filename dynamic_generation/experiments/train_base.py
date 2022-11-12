@@ -7,6 +7,8 @@ import torch
 from absl import flags, logging
 from ml_collections import FrozenConfigDict, config_flags
 
+from dynamic_generation.datasets.base import BaseDataModule
+from dynamic_generation.datasets.main import load_data_module
 from dynamic_generation.experiments.utils.actions import Action
 from dynamic_generation.experiments.utils.metrics import MetricsLogger
 from dynamic_generation.experiments.utils.wandb import wandb_run
@@ -48,11 +50,17 @@ class BaseTrainer:
         else:
             self.device = torch.device("cpu")
 
-        self.train_state = self.initialize_state()
-        self.train_loader, self.eval_loader = self.initialize_dataloader()
-        self.actions = self.initialize_actions()
         self.metrics = MetricsLogger()
         self.log = self.metrics.log
+
+        self.train_state = self.initialize_state()
+        self.actions = self.initialize_actions()
+
+        # setup data loaders
+        dm = load_data_module(**self.config.dataset.dm_kwargs)
+        self.data_module = dm
+        self.train_loader = dm.train_loader(**self.config.dataset.train_kwargs)
+        self.eval_loader = dm.eval_loader(**self.config.dataset.eval_kwargs)
 
         # logs
         logging.info(f"Running with device: {self.device}")
@@ -65,7 +73,7 @@ class BaseTrainer:
         """This function is expected to be subclassed"""
         return {"step": 0}
 
-    def initialize_dataloader(self) -> tuple[Iterator, Iterable]:
+    def initialize_data_module(self) -> BaseDataModule:
         """This function is expected to be subclassed"""
         raise NotImplementedError()
 
