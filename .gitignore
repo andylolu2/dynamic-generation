@@ -7,7 +7,7 @@ __pycache__/
 .python-version
 
 # experiment tracking
-wandb/
+wandb_logs/
 runs/
 
 # vscode

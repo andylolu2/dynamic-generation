@@ -15,7 +15,7 @@ def wandb_run(
         wandb.login()
 
     mode = "disabled" if dry_run else "online"
-    wandb.init(mode=mode, project=project, config=config, tags=tags)
+    wandb.init(mode=mode, project=project, config=config, tags=tags, dir="wandb_logs")
 
     try:
         yield
