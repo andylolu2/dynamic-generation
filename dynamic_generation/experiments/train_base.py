@@ -96,7 +96,10 @@ class BaseTrainer:
         self.train_state["step"] += 1
 
     def cast(self, *tensors: Tensor):
-        return tuple(t.to(dtype=self.dtype, device=self.device) for t in tensors)
+        if len(tensors) == 1:
+            return tensors[0].to(dtype=self.dtype, device=self.device)
+        else:
+            return tuple(self.cast(t) for t in tensors)
 
     def save(self, path: Path):
         state_to_save = {}
