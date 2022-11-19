@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import matplotlib.pyplot as plt
-import plotly.graph_objects as go
 import torch
 import wandb
 from absl import app
@@ -71,8 +70,10 @@ class Trainer(BaseTrainer):
         with self.metrics.capture("train"):
             x = item["data"]
             x = self.cast(x)
+            out = self.model(x)
+
             beta = self.beta_schedule(self.train_step)
-            loss = self.model.loss(x, beta)
+            loss = self.model.loss(x, out, beta)
 
             grad_norm = nn.utils.clip_grad.clip_grad_norm_(self.model.parameters(), 1.0)
             self.optimizer.zero_grad()
@@ -92,8 +93,10 @@ class Trainer(BaseTrainer):
             x = item["data"]
             x = self.cast(x)
             xs.append(x)
+            out = self.model(x)
+
             beta = self.beta_schedule(self.train_step)
-            _ = self.model.loss(x, beta)
+            _ = self.model.loss(x, out, beta)
 
         real = torch.stack(xs).cpu().numpy()
         real = real.reshape(-1, real.shape[-1])
