@@ -19,11 +19,18 @@ def get_ponder_net_config():
             dir="model",
             ext=".pt",
         ),
+        train=dict(
+            ponder_samples=10,
+        ),
+        eval=dict(
+            ponder_samples=20,
+        ),
         model=dict(
             ponder_module_kwargs=dict(
                 input_size=ds_dim,
                 hidden_size=128,
                 output_size=1,
+                num_layers=1,
             ),
             ponder_net_kwargs=dict(
                 epsilon=0.05,

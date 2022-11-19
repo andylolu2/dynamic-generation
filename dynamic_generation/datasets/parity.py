@@ -57,7 +57,7 @@ def build_one(dim: int, min_n: int, max_n: int):
     x = x[torch.randperm(dim)]
 
     # count x to generate the labels
-    y = torch.abs(x).sum(dim=-1, keepdim=True)
+    y = torch.abs(x).sum(dim=-1)
     y = y % 2
 
     return x, y
