@@ -5,6 +5,7 @@ from torch.distributions import Beta, Distribution, Normal, Uniform, kl_divergen
 from torchtyping import TensorType
 
 from dynamic_generation.experiments.train_base import BaseTrainer
+from dynamic_generation.models.mlp import MLP
 from dynamic_generation.types import Tensor
 
 
@@ -75,29 +76,19 @@ class UniformBetaVAE(BaseVAE):
         self.input_dim = input_dim
         self.n_layers = n_layers
 
-        enc_dims = [input_dim] + [hidden_dim] * ((n_layers - 1)) + [2 * z_dim]
-        enc_layers = []
-        for dim1, dim2 in zip(enc_dims[:-1], enc_dims[1:]):
-            enc_layers.append(nn.Linear(dim1, dim2))
-            enc_layers.append(nn.GELU())
-        enc_layers.pop(-1)
-        self.enc = nn.Sequential(*enc_layers)
-
+        enc_dims = [input_dim] + [hidden_dim] * (n_layers - 1) + [2 * z_dim]
         dec_dims = [z_dim] + [hidden_dim] * (n_layers - 1) + [input_dim]
-        dec_layers = []
-        for dim1, dim2 in zip(dec_dims[:-1], dec_dims[1:]):
-            dec_layers.append(nn.Linear(dim1, dim2))
-            dec_layers.append(nn.GELU())
-        dec_layers.pop(-1)
-        self.dec = nn.Sequential(*dec_layers)
+
+        self.encoder = MLP(enc_dims, activation=nn.GELU())
+        self.decoder = MLP(dec_dims, activation=nn.GELU())
         self.std = nn.parameter.Parameter(torch.tensor(1.0))
 
     def base_encode(self, x: Tensor) -> Distribution:
-        h = self.enc(x) ** 2
+        h = self.encoder(x) ** 2
         a, b = h.chunk(2, dim=-1)
         return Beta(a, b)
 
     def decode(self, z: TensorType["batch", "hidden"]):
-        mean = self.dec(z)
+        mean = self.decoder(z)
         X_hat = Normal(loc=mean, scale=self.std)
         return X_hat
