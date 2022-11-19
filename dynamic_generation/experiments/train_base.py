@@ -1,6 +1,6 @@
 from logging import Formatter
 from pathlib import Path
-from typing import Callable, Iterable, Iterator
+from typing import Callable, overload
 
 import numpy as np
 import torch
@@ -94,6 +94,14 @@ class BaseTrainer:
         for action in self.actions:
             action(self.train_step)
         self.train_state["step"] += 1
+
+    @overload
+    def cast(self, __tensor: Tensor) -> Tensor:
+        ...
+
+    @overload
+    def cast(self, *tensors: Tensor) -> tuple[Tensor, ...]:
+        ...
 
     def cast(self, *tensors: Tensor):
         if len(tensors) == 1:
