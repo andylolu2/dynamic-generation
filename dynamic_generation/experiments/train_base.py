@@ -10,9 +10,9 @@ from ml_collections import FrozenConfigDict, config_flags
 from dynamic_generation.datasets.base import BaseDataModule
 from dynamic_generation.datasets.main import load_data_module
 from dynamic_generation.experiments.utils.actions import Action
-from dynamic_generation.experiments.utils.metrics import MetricsLogger
 from dynamic_generation.experiments.utils.wandb import wandb_run
 from dynamic_generation.types import Tensor, TrainState
+from dynamic_generation.utils.interrupt_handler import InterruptHandler
 
 _CONFIG = config_flags.DEFINE_config_file("config")
 flags.mark_flag_as_required("config")
@@ -50,9 +50,6 @@ class BaseTrainer:
         else:
             self.device = torch.device("cpu")
 
-        self.metrics = MetricsLogger()
-        self.log = self.metrics.log
-
         self.train_state = self.initialize_state()
         self.actions = self.initialize_actions()
 
@@ -64,6 +61,9 @@ class BaseTrainer:
 
         # logs
         logging.info(f"Running with device: {self.device}")
+
+        # handle keyboard interrupts
+        self.interrupt_handler = InterruptHandler(handler=self.handle_interrupt)
 
     @property
     def train_step(self) -> int:
@@ -131,3 +131,6 @@ class BaseTrainer:
                 self.train_state[k] = saved_state[k]
 
         logging.info(f"Restored states {list(saved_state.keys())} from {path}")
+
+    def handle_interrupt(self):
+        logging.info("Using default empty interrupt handler...")
