@@ -1,10 +1,10 @@
 from pathlib import Path
 
 import torch
+import torch.distributions as D
 import wandb
 from absl import app, logging
 from torch import nn
-from torch.distributions import Bernoulli, MixtureSameFamily
 from torch.optim import Adam
 from torchmetrics.functional.classification import binary_accuracy
 
@@ -72,9 +72,9 @@ class Trainer(BaseTrainer):
             x, y_true = self.cast(x, y_true)
 
             y, halt_dist = self.model(x)
-            y_pred = MixtureSameFamily(
+            y_pred = D.MixtureSameFamily(
                 mixture_distribution=halt_dist,
-                component_distribution=Bernoulli(logits=y.squeeze(-1)),
+                component_distribution=D.Bernoulli(logits=y.squeeze(-1)),
             )
             loss = self.model.loss(y_true=y_true, y_pred=y_pred, halt_dist=halt_dist)
 
@@ -83,7 +83,7 @@ class Trainer(BaseTrainer):
             grad_norm = nn.utils.clip_grad.clip_grad_norm_(self.model.parameters(), 0.5)
             self.optimizer.step()
 
-            pred = y_pred.sample((self.config.train.ponder_samples,))
+            pred = y_pred.sample((self.config.train.ponder_samples,))  # type: ignore
             target, pred = torch.broadcast_tensors(y_true, pred)
             accuracy = binary_accuracy(pred, target)
 
@@ -103,14 +103,14 @@ class Trainer(BaseTrainer):
             x, y_true = self.cast(x, y_true)
 
             y, halt_dist = self.model(x)
-            y_pred = MixtureSameFamily(
+            y_pred = D.MixtureSameFamily(
                 mixture_distribution=halt_dist,
-                component_distribution=Bernoulli(logits=y.squeeze(-1)),
+                component_distribution=D.Bernoulli(logits=y.squeeze(-1)),
             )
             _ = self.model.loss(y_true=y_true, y_pred=y_pred, halt_dist=halt_dist)
 
             # calculate weighted accuracy
-            pred = y_pred.sample((self.config.eval.ponder_samples,))
+            pred = y_pred.sample((self.config.eval.ponder_samples,))  # type: ignore
             target, pred = torch.broadcast_tensors(y_true, pred)
             accuracy = binary_accuracy(pred, target)
             global_metrics.log("accuracy", accuracy.item(), "mean")

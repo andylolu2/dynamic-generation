@@ -4,9 +4,8 @@ Link to original paper: https://arxiv.org/abs/2107.05407
 
 """
 import torch
-import torch.nn.functional as F
+import torch.distributions as D
 from torch import nn
-from torch.distributions import Distribution, kl_divergence
 from torchtyping import TensorType
 
 from dynamic_generation.experiments.train_base import BaseTrainer
@@ -14,26 +13,6 @@ from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.models.ponder_module import PonderModule
 from dynamic_generation.types import Tensor
 from dynamic_generation.utils.distributions import FiniteDiscrete, TruncatedGeometric
-
-
-def geometric(p, N):
-    ps = torch.full((1, N), p)
-    dist = exclusive_cumprod(ps)
-    dist /= dist.sum(-1, keepdim=True)
-    return dist
-
-
-def exclusive_cumprod(ps: Tensor, dim=-1):
-    x = torch.cumprod(1 - ps, dim=dim)
-    x = torch.roll(x, shifts=1, dims=dim)
-    zero = torch.tensor(0, device=x.device)
-    x = x.index_fill(dim=dim, index=zero, value=1)
-    x *= ps
-    return x
-
-
-def calc_steps(epsilon: TensorType[()], lambda_p: TensorType[()]):
-    return int(torch.ceil(torch.log(epsilon) / torch.log(1 - lambda_p)))
 
 
 class PonderNet(nn.Module):
@@ -44,7 +23,6 @@ class PonderNet(nn.Module):
         beta: float,
         N_max: int,
         ponder_module: PonderModule,
-        trainer: BaseTrainer,
     ):
         """
         Initializes a PonderNet module.
@@ -59,12 +37,16 @@ class PonderNet(nn.Module):
             trainer (BaseTrainer): The trainer for logging.
         """
         super().__init__()
-        self.epsilon = torch.tensor(epsilon)
-        self.lambda_p = torch.tensor(lambda_p)
-        self.beta = torch.tensor(beta)
         self.N_max = N_max
         self.ponder_module = ponder_module
-        self.trainer = trainer
+
+        # register buffers
+        self.beta: Tensor
+        self.epsilon: Tensor
+        self.lambda_p: Tensor
+        self.register_buffer("beta", torch.tensor(beta))
+        self.register_buffer("epsilon", torch.tensor(epsilon))
+        self.register_buffer("lambda_p", torch.tensor(lambda_p))
 
     def forward(self, x: TensorType["batch", "features"]):
         ys, halt_dist = self.ponder_module.eps_forward(x, self.epsilon, self.N_max)
@@ -80,15 +62,20 @@ class PonderNet(nn.Module):
     def prior(self, length: int):
         return TruncatedGeometric(self.lambda_p, length)
 
+    def regularisation(self, halt_dist: FiniteDiscrete, beta: Tensor | int = 1):
+        ponder_loss = beta * D.kl_divergence(halt_dist, self.prior(halt_dist.N)).mean()
+        global_metrics.log("ponder_loss", ponder_loss.item(), "mean")
+        return ponder_loss
+
     def loss(
         self,
         y_true: TensorType["batch", "output"],
-        y_pred: Distribution,
+        y_pred: D.Distribution,
         halt_dist: FiniteDiscrete,
     ):
-        L_rec = -y_pred.log_prob(y_true).mean()
-        L_reg = kl_divergence(halt_dist, self.prior(halt_dist._num_events)).mean()
-        loss = L_rec + self.beta * L_reg
+        target_loss = -y_pred.log_prob(y_true).mean()
+        ponder_loss = self.regularisation(halt_dist, self.beta)
+        loss = target_loss + ponder_loss
 
         global_metrics.log("target_loss", target_loss.item(), "mean")
         global_metrics.log("loss", loss.item(), "mean")

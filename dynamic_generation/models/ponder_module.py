@@ -72,8 +72,8 @@ class RecurrentPonderModule(PonderModule):
         N: int,
     ) -> tuple[TensorType["batch", "N", "outputs"], FiniteDiscrete]:
         _, digest = self.recur(x, h=None, steps=N)
-        ys = self.output(digest)
-        halt_logits = self.halt_logits(digest).squeeze(-1)
+        ys = self.output(digest)  # batch x ponder x dim
+        halt_logits = self.halt_logits(digest).squeeze(-1)  # batch x ponder
         halt_dist = FiniteDiscrete(logits=halt_logits)
         return ys, halt_dist
 
@@ -98,14 +98,14 @@ class RecurrentPonderModule(PonderModule):
             unhalted_logits += (1 - p_halt).log()
             step += 1
 
-        ys = torch.stack(ys).transpose(0, 1)  # batch first
-        halt_logits = torch.stack(halt_logits).transpose(0, 1)  # batch first
+        ys = torch.stack(ys).permute(1, 0, 2)  # batch x dim x ponder
+        halt_logits = torch.stack(halt_logits).permute(1, 0)  # batch x ponder
         halt_dist = FiniteDiscrete(logits=halt_logits)
 
         return ys, halt_dist
 
 
-class RnnPonderModule(RecurrentPonderModule):
+class RNNPonderModule(RecurrentPonderModule):
     def __init__(
         self,
         input_size: int,
