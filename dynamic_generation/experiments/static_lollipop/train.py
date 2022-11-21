@@ -13,6 +13,7 @@ from dynamic_generation.experiments.utils.actions import (
     PeriodicLogAction,
     PeriodicSaveAction,
 )
+from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.models.toy_generator import ToyGenerator
 from dynamic_generation.types import TrainState
 
@@ -40,7 +41,6 @@ class Trainer(BaseTrainer):
     def initialize_actions(self) -> list[Action]:
         log_action = PeriodicLogAction(
             interval=self.config.log_every,
-            metrics=self.metrics,
             group="train",
             dry_run=self.config.dry_run,
         )
@@ -53,7 +53,6 @@ class Trainer(BaseTrainer):
         )
         eval_action = PeriodicEvalAction(
             interval=self.config.eval_every,
-            metrics=self.metrics,
             eval_fn=self.evaluate,
             dry_run=self.config.dry_run,
         )
@@ -61,7 +60,7 @@ class Trainer(BaseTrainer):
         return [log_action, save_action, eval_action]
 
     def _step(self, item):
-        with self.metrics.capture("train"):
+        with global_metrics.capture("train"):
             x = item["data"]
             x = self.cast(x)
             loss = self.model.loss(x)
@@ -71,7 +70,7 @@ class Trainer(BaseTrainer):
             self.optimizer.step()
 
             if "epoch" in item:
-                self.log("epoch", item["epoch"], "replace")
+                global_metrics.log("epoch", item["epoch"], "replace")
 
     @torch.inference_mode()
     def evaluate(self):
@@ -98,7 +97,7 @@ class Trainer(BaseTrainer):
         ax.set(box_aspect=1)
         fig.tight_layout()
 
-        self.log("samples", wandb.Image(fig), "replace")
+        global_metrics.log("samples", wandb.Image(fig), "replace")
 
         self.model.train()
 

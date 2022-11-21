@@ -123,3 +123,6 @@ class MetricsLogger:
 
     def clear(self, group: str):
         self.logs.pop(group, None)
+
+
+global_metrics = MetricsLogger()

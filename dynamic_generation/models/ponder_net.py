@@ -10,6 +10,7 @@ from torch.distributions import Distribution, kl_divergence
 from torchtyping import TensorType
 
 from dynamic_generation.experiments.train_base import BaseTrainer
+from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.models.ponder_module import PonderModule
 from dynamic_generation.types import Tensor
 from dynamic_generation.utils.distributions import FiniteDiscrete, TruncatedGeometric
@@ -69,8 +70,10 @@ class PonderNet(nn.Module):
         ys, halt_dist = self.ponder_module.eps_forward(x, self.epsilon, self.N_max)
 
         # log metrics
-        self.trainer.log("halt_normalised_mean", halt_dist.mean.mean().item(), "mean")
-        self.trainer.log("n_steps", halt_dist._num_events, "mean")
+        global_metrics.log(
+            "halt_normalised_mean", halt_dist.mean.mean().item() + 1, "mean"
+        )
+        global_metrics.log("n_steps", halt_dist._num_events, "mean")
 
         return ys, halt_dist
 
@@ -87,8 +90,7 @@ class PonderNet(nn.Module):
         L_reg = kl_divergence(halt_dist, self.prior(halt_dist._num_events)).mean()
         loss = L_rec + self.beta * L_reg
 
-        self.trainer.log("loss", loss.item(), "mean")
-        self.trainer.log("loss_rec", L_rec.item(), "mean")
-        self.trainer.log("loss_reg", L_reg.item(), "mean")
+        global_metrics.log("target_loss", target_loss.item(), "mean")
+        global_metrics.log("loss", loss.item(), "mean")
 
         return loss

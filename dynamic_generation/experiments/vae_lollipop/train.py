@@ -14,6 +14,7 @@ from dynamic_generation.experiments.utils.actions import (
     PeriodicLogAction,
     PeriodicSaveAction,
 )
+from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.experiments.utils.schedules import load_schedule
 from dynamic_generation.models.vae import UniformBetaVAE
 from dynamic_generation.types import TrainState
@@ -34,7 +35,7 @@ class Trainer(BaseTrainer):
 
     def initialize_state(self) -> TrainState:
         train_state = super().initialize_state()
-        model = UniformBetaVAE(trainer=self, **self.config.model_kwargs)
+        model = UniformBetaVAE(**self.config.model_kwargs)
         optimizer = Adam(model.parameters(), **self.config.optimizer_kwargs)
 
         model.to(device=self.device, dtype=self.dtype)
@@ -46,7 +47,6 @@ class Trainer(BaseTrainer):
     def initialize_actions(self) -> list[Action]:
         log_action = PeriodicLogAction(
             interval=self.config.log_every,
-            metrics=self.metrics,
             group="train",
             dry_run=self.config.dry_run,
         )
@@ -59,7 +59,6 @@ class Trainer(BaseTrainer):
         )
         eval_action = PeriodicEvalAction(
             interval=self.config.eval_every,
-            metrics=self.metrics,
             eval_fn=self.evaluate,
             dry_run=self.config.dry_run,
         )
@@ -67,7 +66,7 @@ class Trainer(BaseTrainer):
         return [log_action, save_action, eval_action]
 
     def _step(self, item):
-        with self.metrics.capture("train"):
+        with global_metrics.capture("train"):
             x = item["data"]
             x = self.cast(x)
             out = self.model(x)
@@ -80,9 +79,9 @@ class Trainer(BaseTrainer):
             loss.backward()
             self.optimizer.step()
 
-            self.log("grad_norm", grad_norm.item(), "mean")
+            global_metrics.log("grad_norm", grad_norm.item(), "mean")
             if "epoch" in item:
-                self.log("epoch", item["epoch"], "replace")
+                global_metrics.log("epoch", item["epoch"], "replace")
 
     @torch.inference_mode()
     def evaluate(self):
@@ -112,7 +111,7 @@ class Trainer(BaseTrainer):
         ax.set(box_aspect=1)
         fig.tight_layout()
 
-        self.log("samples", wandb.Image(fig), "replace")
+        global_metrics.log("samples", wandb.Image(fig), "replace")
 
         self.model.train()
 

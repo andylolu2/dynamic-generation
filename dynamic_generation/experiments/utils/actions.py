@@ -1,11 +1,10 @@
-from functools import partial
 from pathlib import Path
 from typing import Callable, Protocol
 
 import wandb
 
 from dynamic_generation.experiments.utils.logging import print_metrics
-from dynamic_generation.experiments.utils.metrics import MetricsLogger
+from dynamic_generation.experiments.utils.metrics import global_metrics
 
 
 class Action(Protocol):
@@ -33,16 +32,13 @@ class PeriodicAction(Action):
 
 
 class PeriodicLogAction(PeriodicAction):
-    def __init__(
-        self, interval: int, metrics: MetricsLogger, group: str, dry_run: bool
-    ):
+    def __init__(self, interval: int, group: str, dry_run: bool):
         super().__init__(interval)
-        self.metrics = metrics
         self.group = group
         self.dry_run = dry_run
 
     def run(self, step: int):
-        metrics = self.metrics.collect(self.group)
+        metrics = global_metrics.collect(self.group)
         print_metrics(metrics, step)
 
         if not self.dry_run:
@@ -50,22 +46,15 @@ class PeriodicLogAction(PeriodicAction):
 
 
 class PeriodicEvalAction(PeriodicAction):
-    def __init__(
-        self,
-        interval: int,
-        metrics: MetricsLogger,
-        eval_fn: Callable[[], None],
-        dry_run: bool,
-    ):
+    def __init__(self, interval: int, eval_fn: Callable[[], None], dry_run: bool):
         super().__init__(interval)
-        self.metrics = metrics
         self.eval_fn = eval_fn
         self.dry_run = dry_run
 
     def run(self, step: int):
-        with self.metrics.capture("eval"):
+        with global_metrics.capture("eval"):
             self.eval_fn()
-        metrics = self.metrics.collect(group="eval")
+        metrics = global_metrics.collect(group="eval")
         print_metrics(metrics, step)
 
         if not self.dry_run:

@@ -4,6 +4,7 @@ from torch import nn
 from torchtyping import TensorType
 
 from dynamic_generation.experiments.train_base import BaseTrainer
+from dynamic_generation.experiments.utils.metrics import global_metrics
 
 
 class ToyGenerator(nn.Module):
@@ -51,5 +52,5 @@ class ToyGenerator(nn.Module):
         log_lik = torch.mean(torch.log(lik_per_z.mean(dim=1)))
         loss = -log_lik
 
-        self.trainer.log("loss", loss.item(), "mean")
+        global_metrics.log("loss", loss.item(), "mean")
         return loss

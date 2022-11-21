@@ -15,7 +15,8 @@ from dynamic_generation.experiments.utils.actions import (
     PeriodicLogAction,
     PeriodicSaveAction,
 )
-from dynamic_generation.models.ponder_module import RnnPonderModule
+from dynamic_generation.experiments.utils.metrics import global_metrics
+from dynamic_generation.models.ponder_module import RNNPonderModule
 from dynamic_generation.models.ponder_net import PonderNet
 from dynamic_generation.types import TrainState
 
@@ -32,11 +33,9 @@ class Trainer(BaseTrainer):
     def initialize_state(self) -> TrainState:
         state = super().initialize_state()
 
-        ponder_module = RnnPonderModule(**self.config.model.ponder_module_kwargs)
+        ponder_module = RNNPonderModule(**self.config.model.ponder_module_kwargs)
         model = PonderNet(
-            ponder_module=ponder_module,
-            trainer=self,
-            **self.config.model.ponder_net_kwargs,
+            ponder_module=ponder_module, **self.config.model.ponder_net_kwargs
         )
         optimizer = Adam(model.parameters(), **self.config.optimizer_kwargs)
 
@@ -49,7 +48,6 @@ class Trainer(BaseTrainer):
     def initialize_actions(self) -> list[Action]:
         log_action = PeriodicLogAction(
             interval=self.config.log_every,
-            metrics=self.metrics,
             group="train",
             dry_run=self.config.dry_run,
         )
@@ -62,7 +60,6 @@ class Trainer(BaseTrainer):
         )
         eval_action = PeriodicEvalAction(
             interval=self.config.eval_every,
-            metrics=self.metrics,
             eval_fn=self.evaluate,
             dry_run=self.config.dry_run,
         )
@@ -70,7 +67,7 @@ class Trainer(BaseTrainer):
         return [log_action, save_action, eval_action]
 
     def _step(self, item):
-        with self.metrics.capture("train"):
+        with global_metrics.capture("train"):
             x, y_true = item["data"]
             x, y_true = self.cast(x, y_true)
 
@@ -90,10 +87,10 @@ class Trainer(BaseTrainer):
             target, pred = torch.broadcast_tensors(y_true, pred)
             accuracy = binary_accuracy(pred, target)
 
-            self.log("accuracy", accuracy.item(), "mean")
-            self.log("grad_norm", grad_norm.item(), "mean")
+            global_metrics.log("accuracy", accuracy.item(), "mean")
+            global_metrics.log("grad_norm", grad_norm.item(), "mean")
             if "epoch" in item:
-                self.log("epoch", item["epoch"])
+                global_metrics.log("epoch", item["epoch"])
 
     @torch.inference_mode()
     def evaluate(self):
@@ -116,7 +113,7 @@ class Trainer(BaseTrainer):
             pred = y_pred.sample((self.config.eval.ponder_samples,))
             target, pred = torch.broadcast_tensors(y_true, pred)
             accuracy = binary_accuracy(pred, target)
-            self.log("accuracy", accuracy.item(), "mean")
+            global_metrics.log("accuracy", accuracy.item(), "mean")
 
         self.model.train()
 
