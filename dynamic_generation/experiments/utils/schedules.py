@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from dataclasses import dataclass
+from typing import Sequence
 
 
 class Schedule:
@@ -17,12 +18,12 @@ def linear_interpolate(x1, y1, x2, y2, t):
 
 @dataclass
 class StepSchedule(Schedule):
-    milestones: list[int]
-    values: list[float]
+    milestones: Sequence[int]
+    values: Sequence[float]
 
     def __post_init__(self):
         assert len(self.milestones) == len(self.values)
-        assert sorted(self.milestones) == self.milestones
+        assert sorted(self.milestones) == list(self.milestones)
 
     def __call__(self, step: int) -> float:
         ms = self.milestones
