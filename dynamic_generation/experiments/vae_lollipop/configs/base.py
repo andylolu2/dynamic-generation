@@ -1,4 +1,4 @@
-from ml_collections.config_dict import FieldReference, placeholder
+from ml_collections.config_dict import placeholder
 
 from dynamic_generation.experiments.utils.config import get_base_config
 

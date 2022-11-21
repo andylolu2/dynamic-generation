@@ -1,5 +1,3 @@
-from typing import Iterable, Iterator
-
 from dynamic_generation.datasets.base import BaseDataModule
 from dynamic_generation.datasets.lollipop import LollipopDataModule
 from dynamic_generation.datasets.parity import ParityDataModule
