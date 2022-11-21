@@ -101,7 +101,7 @@ class Trainer(BaseTrainer):
         real = real.reshape(-1, real.shape[-1])
 
         # generate samples
-        x_hat = self.model.generate(self.config.eval.samples, self.device)
+        x_hat, _ = self.model.generate(self.config.eval.samples, self.device)
         data = x_hat.cpu().numpy()
 
         # plot results
