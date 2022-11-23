@@ -60,7 +60,7 @@ class ReplaceAccumulator(BaseAccumulator):
 
 class MeanAccumulator(BaseAccumulator):
     def __init__(self, init_value):
-        self.value = torch.as_tensor(init_value)
+        self.value = torch.as_tensor(init_value, dtype=torch.float32)
         self.count = torch.tensor(1.0)
 
     def update(self, value):
