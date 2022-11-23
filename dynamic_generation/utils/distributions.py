@@ -27,26 +27,16 @@ class FiniteDiscrete(D.Categorical):
         )
         return E_x_squared - self.mean**2
 
-    def expand(self, batch_shape, _instance=None):
-        new = self._get_checked_instance(D.Categorical, _instance)
-        batch_shape = torch.Size(batch_shape)
-        param_shape = batch_shape + torch.Size((self._num_events,))
+    def average(self):
+        """
+        Element-wise average of each category over the batch dimensions, then normalised.
+        """
         if "probs" in self.__dict__:
-            new.probs = self.probs.expand(param_shape)
-            new._param = new.probs
+            probs = torch.reshape(self.probs, (-1, self.N)).mean(0)
+            return FiniteDiscrete(probs=probs)
         if "logits" in self.__dict__:
-            new.logits = self.logits.expand(param_shape)
-            new._param = new.logits
-        new._num_events = self._num_events
-        super(D.Categorical, new).__init__(batch_shape, validate_args=False)
-        new._validate_args = self._validate_args
-        return new
-
-    def unsqueeze(self, dim):
-        if "probs" in self.__dict__:
-            return FiniteDiscrete(probs=self.probs.unsqueeze(dim=dim))
-        if "logits" in self.__dict__:
-            return FiniteDiscrete(logits=self.logits.unsqueeze(dim=dim))
+            logits = torch.reshape(self.logits, (-1, self.N)).mean(0)
+            return FiniteDiscrete(logits=logits)
 
 
 class TruncatedGeometric(FiniteDiscrete):
