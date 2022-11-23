@@ -5,6 +5,7 @@ from torchtyping import TensorType
 
 from dynamic_generation.experiments.train_base import BaseTrainer
 from dynamic_generation.experiments.utils.metrics import global_metrics
+from dynamic_generation.utils.stability import safe_log
 
 
 class ToyGenerator(nn.Module):
@@ -49,7 +50,7 @@ class ToyGenerator(nn.Module):
 
         d = torch.linalg.norm(x.unsqueeze(1) - x_hat, dim=-1)
         lik_per_z = torch.exp(-0.5 * (d / self.std) ** 2) + 1e-10
-        log_lik = torch.mean(torch.log(lik_per_z.mean(dim=1)))
+        log_lik = torch.mean(safe_log(lik_per_z.mean(dim=1)))
         loss = -log_lik
 
         global_metrics.log("loss", loss.item(), "mean")

@@ -2,6 +2,7 @@ import torch
 import torch.distributions as D
 
 from dynamic_generation.types import Tensor
+from dynamic_generation.utils.stability import safe_log
 
 
 class FiniteDiscrete(D.Categorical):
@@ -50,7 +51,7 @@ class FiniteDiscrete(D.Categorical):
 
 class TruncatedGeometric(FiniteDiscrete):
     def __init__(self, p: Tensor, N: int, validate_args=None):
-        logits = p.log() + torch.arange(N, device=p.device) * (1 - p).log()
+        logits = safe_log(p) + torch.arange(N, device=p.device) * safe_log(1 - p)
         super().__init__(logits=logits, validate_args=validate_args)
 
 

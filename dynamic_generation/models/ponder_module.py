@@ -4,6 +4,7 @@ from torchtyping import TensorType
 
 from dynamic_generation.types import Tensor
 from dynamic_generation.utils.distributions import FiniteDiscrete
+from dynamic_generation.utils.stability import safe_log
 
 
 class PonderModule(nn.Module):
@@ -93,9 +94,9 @@ class RecurrentPonderModule(PonderModule):
             p_halt = self.halt_logits(digest).sigmoid().flatten()
 
             ys.append(self.output(digest).squeeze(1))
-            halt_logits.append(unhalted_logits + p_halt.log())
+            halt_logits.append(unhalted_logits + safe_log(p_halt))
 
-            unhalted_logits += (1 - p_halt).log()
+            unhalted_logits += safe_log(1 - p_halt)
             step += 1
 
         ys = torch.stack(ys).permute(1, 0, 2)  # batch x dim x ponder
