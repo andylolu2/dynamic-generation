@@ -125,8 +125,10 @@ def main(config):
     if config.restore is not None:
         trainer.load(Path(config.restore))
 
-    while config.steps < 0 or trainer.train_step < config.steps:
-        trainer.step()
+    with trainer.interrupt_handler as check_interrupt:
+        while config.steps < 0 or trainer.train_step < config.steps:
+            check_interrupt()
+            trainer.step()
 
 
 if __name__ == "__main__":
