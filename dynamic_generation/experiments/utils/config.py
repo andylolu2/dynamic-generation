@@ -8,6 +8,7 @@ def get_base_config(project_name: str):
 
     config.project_name = project_name
     config.tags = placeholder(tuple)
+    config.notes = placeholder(str)
     config.logging = dict(
         level=logging.INFO,
         format="[%(levelname)s %(asctime)s %(filename)s:%(lineno)s] %(message)s",

@@ -1,21 +1,15 @@
 from contextlib import contextmanager
-from typing import Sequence
 
 import wandb
 
 
 @contextmanager
-def wandb_run(
-    project: str | None = None,
-    dry_run: bool = False,
-    config: dict | None = None,
-    tags: Sequence[str] | None = None,
-):
+def wandb_run(dry_run: bool = False, *args, **kwargs):
     if not dry_run:
         wandb.login()
 
     mode = "disabled" if dry_run else "online"
-    wandb.init(mode=mode, project=project, config=config, tags=tags, dir="wandb_logs")
+    wandb.init(mode=mode, dir="wandb_logs", *args, **kwargs)
 
     try:
         yield

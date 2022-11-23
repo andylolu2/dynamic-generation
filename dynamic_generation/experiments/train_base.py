@@ -30,10 +30,11 @@ def run_exp(main_fn: Callable[[FrozenConfigDict], None]):
     logging.info(config)
 
     run = wandb_run(
-        project=config.project_name,
         dry_run=config.dry_run,  # type: ignore
+        project=config.project_name,
         config=config.to_dict(),
         tags=config.tags,
+        notes=config.notes,
     )
     with run:
         main_fn(config)
