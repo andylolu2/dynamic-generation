@@ -34,6 +34,7 @@ def get_config():
             n_layers=4,
         ),
         optimizer_kwargs=dict(
+            name="Adam",
             lr=3e-3,
         ),
         dataset=dict(

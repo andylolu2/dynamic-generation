@@ -29,6 +29,7 @@ def get_config():
             std=std,
         ),
         optimizer_kwargs=dict(
+            name="Adam",
             lr=1e-3,
         ),
         dataset=dict(

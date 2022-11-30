@@ -40,6 +40,7 @@ def get_ponder_net_config():
             ),
         ),
         optimizer_kwargs=dict(
+            name="Adam",
             lr=3e-4,
         ),
         dataset=dict(

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import torch
 import wandb
 from absl import app
-from torch.optim import Adam
+from torch.optim import Optimizer
 
 from dynamic_generation.experiments.train_base import BaseTrainer, run_exp
 from dynamic_generation.experiments.utils.actions import (
@@ -14,6 +14,7 @@ from dynamic_generation.experiments.utils.actions import (
     PeriodicSaveAction,
 )
 from dynamic_generation.experiments.utils.metrics import global_metrics
+from dynamic_generation.experiments.utils.optimizers import load_optimizer
 from dynamic_generation.models.toy_generator import ToyGenerator
 from dynamic_generation.types import TrainState
 
@@ -24,13 +25,15 @@ class Trainer(BaseTrainer):
         return self.train_state["model"]
 
     @property
-    def optimizer(self) -> Adam:
+    def optimizer(self) -> Optimizer:
         return self.train_state["optimizer"]
 
     def initialize_state(self) -> TrainState:
         train_state = super().initialize_state()
         model = ToyGenerator(trainer=self, **self.config.model_kwargs)
-        optimizer = Adam(model.parameters(), **self.config.optimizer_kwargs)
+        optimizer = load_optimizer(
+            params=model.parameters(), **self.config.optimizer_kwargs
+        )
 
         model.to(device=self.device, dtype=self.dtype)
 
