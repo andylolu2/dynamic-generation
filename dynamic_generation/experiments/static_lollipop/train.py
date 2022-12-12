@@ -1,25 +1,17 @@
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import torch
 import wandb
 from absl import app
 from torch.optim import Optimizer
 
-from dynamic_generation.experiments.train_base import BaseTrainer, run_exp
-from dynamic_generation.experiments.utils.actions import (
-    Action,
-    PeriodicEvalAction,
-    PeriodicLogAction,
-    PeriodicSaveAction,
-)
+from dynamic_generation.experiments.trainer import Trainer
 from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.experiments.utils.optimizers import load_optimizer
 from dynamic_generation.models.toy_generator import ToyGenerator
 from dynamic_generation.types import TrainState
 
 
-class Trainer(BaseTrainer):
+class ToyGeneratorTrainer(Trainer):
     @property
     def model(self) -> ToyGenerator:
         return self.train_state["model"]
@@ -40,27 +32,6 @@ class Trainer(BaseTrainer):
         train_state["model"] = model
         train_state["optimizer"] = optimizer
         return train_state
-
-    def initialize_actions(self) -> list[Action]:
-        log_action = PeriodicLogAction(
-            interval=self.config.log_every,
-            group="train",
-            dry_run=self.config.dry_run,
-        )
-        save_action = PeriodicSaveAction(
-            interval=self.config.save_every,
-            save_dir=self.exp_dir / self.config.save.dir,
-            save_ext=self.config.save.ext,
-            save_fn=self.save,
-            dry_run=self.config.dry_run,
-        )
-        eval_action = PeriodicEvalAction(
-            interval=self.config.eval_every,
-            eval_fn=self.evaluate,
-            dry_run=self.config.dry_run,
-        )
-
-        return [log_action, save_action, eval_action]
 
     def _step(self, item):
         with global_metrics.capture("train"):
@@ -105,16 +76,5 @@ class Trainer(BaseTrainer):
         self.model.train()
 
 
-def main(config):
-    exp_dir = Path("runs") / config.project_name / wandb.run.name
-    trainer = Trainer(config.trainer_config, exp_dir)
-
-    if config.restore is not None:
-        trainer.load(Path(config.restore))
-
-    while config.steps < 0 or trainer.train_step < config.steps:
-        trainer.step()
-
-
 if __name__ == "__main__":
-    app.run(lambda _: run_exp(main))
+    app.run(ToyGeneratorTrainer.run)
