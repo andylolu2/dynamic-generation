@@ -12,3 +12,6 @@ runs/
 
 # vscode
 .vscode/
+
+# notebooks
+*.ipynb
