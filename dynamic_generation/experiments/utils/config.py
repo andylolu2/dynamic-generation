@@ -16,5 +16,7 @@ def get_base_config(project_name: str):
         float_precision=4,
     )
     config.dry_run = False
+    config.restore = placeholder(str)
+    config.precision = "full"
 
     return config

@@ -29,12 +29,26 @@ class Trainer:
     def __init__(self, config, exp_dir: Path):
         self.config = config
         self.exp_dir = exp_dir
-        self.dtype = torch.float32
 
+        # setup data type
+        self.precision = config.precision
+        match self.precision:
+            case "full":
+        self.dtype = torch.float32
+            case "mixed":
+                self.dtype = torch.float16
+            case other:
+                raise ValueError(f"Unrecognised precision: {other}")
+
+        logging.info(f"Running with precision: {self.precision}")
+        logging.info(f"Running with dtype: {self.dtype}")
+
+        # setup device
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
         else:
             self.device = torch.device("cpu")
+        logging.info(f"Running with device: {self.device}")
 
         self.train_state = self.initialize_state()
         self.actions = self.initialize_actions()
@@ -57,8 +71,6 @@ class Trainer:
         # configure plotting
         plt.style.use("seaborn")
 
-        # logs
-        logging.info(f"Running with device: {self.device}")
         logging.info(self.config)
 
     @classmethod

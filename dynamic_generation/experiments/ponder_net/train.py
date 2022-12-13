@@ -5,6 +5,7 @@ import torch.distributions as D
 import wandb
 from absl import app, logging
 from torch import nn
+from torch.cuda.amp.grad_scaler import GradScaler
 from torch.optim import Optimizer
 from torchmetrics.functional.classification import binary_accuracy
 
@@ -30,6 +31,7 @@ class PonderNetTrainer(Trainer):
         self.data_module: ParityDataModule
         self.model: PonderNet = self.train_state["model"]
         self.optimizer: Optimizer = self.train_state["optimizer"]
+        self.scaler: GradScaler = self.train_state["scaler"]
 
     def initialize_state(self) -> TrainState:
         state = super().initialize_state()
@@ -42,11 +44,13 @@ class PonderNetTrainer(Trainer):
         optimizer = load_optimizer(
             params=model.parameters(), **self.config.optimizer_kwargs
         )
+        scaler = GradScaler(enabled=(self.precision == "mixed"))
 
-        model.to(device=self.device, dtype=self.dtype)
+        model.to(device=self.device)
 
         state["model"] = model
         state["optimizer"] = optimizer
+        state["scaler"] = scaler
         return state
 
     def _step(self, item):
@@ -54,26 +58,38 @@ class PonderNetTrainer(Trainer):
             x, y_true = item["data"]
             x, y_true = self.cast(x, y_true)
 
+            # forward pass
+            with torch.autocast(device_type="cuda", dtype=self.dtype):
             y, halt_dist = self.model(x)
             y_pred = CustomMixture(
                 mixture_distribution=halt_dist,
                 component_distribution=D.Bernoulli(logits=y.squeeze(-1)),
             )
-            loss = self.model.loss(y_true=y_true, y_pred=y_pred, halt_dist=halt_dist)
+                loss = self.model.loss(
+                    y_true=y_true, y_pred=y_pred, halt_dist=halt_dist
+                )
 
+            # backward pass
             self.optimizer.zero_grad()
-            loss.backward()
+            self.scaler.scale(loss).backward()
+
+            # compute and clip grad norm
+            self.scaler.unscale_(self.optimizer)
+            if self.config.train.grad_norm_clip is not None:
             grad_norm = nn.utils.clip_grad.clip_grad_norm_(
                 self.model.parameters(), self.config.train.grad_norm_clip
             )
-            self.optimizer.step()
+                global_metrics.log("grad_norm", grad_norm.item(), "mean")
+
+            # update parameters
+            self.scaler.step(self.optimizer)
+            self.scaler.update()
 
             pred = y_pred.sample()
             target, pred = torch.broadcast_tensors(y_true, pred)
             accuracy = binary_accuracy(pred, target)
 
             global_metrics.log("accuracy", accuracy.item(), "mean")
-            global_metrics.log("grad_norm", grad_norm.item(), "mean")
             if "epoch" in item:
                 global_metrics.log("epoch", item["epoch"])
 
