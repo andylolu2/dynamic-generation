@@ -8,7 +8,6 @@ import torch.distributions as D
 from torch import nn
 from torchtyping import TensorType
 
-from dynamic_generation.experiments.train_base import BaseTrainer
 from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.models.ponder_module import PonderModule
 from dynamic_generation.types import Tensor
@@ -34,7 +33,6 @@ class PonderNet(nn.Module):
             N_max (int): The maximum unroll length.
             loss_fn ([Tensor, Tensor] -> TensorType["batch", "N"]): The target loss function.
             ponder_module (PonderModule): The ponder module that implements the dynamic compute.
-            trainer (BaseTrainer): The trainer for logging.
         """
         super().__init__()
         self.N_max = N_max
@@ -48,8 +46,11 @@ class PonderNet(nn.Module):
         self.register_buffer("epsilon", torch.tensor(epsilon))
         self.register_buffer("lambda_p", torch.tensor(lambda_p))
 
-    def forward(self, x: TensorType["batch", "features"]):
-        ys, halt_dist = self.ponder_module.eps_forward(x, self.epsilon, self.N_max)
+    def forward(self, x: TensorType["batch", "features"], dynamic=False):
+        if dynamic:
+            ys, halt_dist = self.ponder_module.eps_forward(x, self.epsilon, self.N_max)
+        else:
+            ys, halt_dist = self.ponder_module.forward(x, self.N_max)
 
         # log metrics
         global_metrics.log(
@@ -62,8 +63,17 @@ class PonderNet(nn.Module):
     def prior(self, length: int):
         return TruncatedGeometric(self.lambda_p, length)
 
-    def regularisation(self, halt_dist: FiniteDiscrete, beta: Tensor | int = 1):
-        ponder_loss = beta * D.kl_divergence(halt_dist, self.prior(halt_dist.N)).mean()
+    def regularisation(
+        self, halt_dist: FiniteDiscrete, beta: Tensor | int = 1, average=False
+    ):
+        if average:
+            average_halt_dist = halt_dist.average()
+            ponder_loss = D.kl_divergence(
+                average_halt_dist, self.prior(average_halt_dist.N)
+            )
+        else:
+            ponder_loss = D.kl_divergence(halt_dist, self.prior(halt_dist.N)).mean()
+        ponder_loss *= beta
         global_metrics.log("ponder_loss", ponder_loss.item(), "mean")
         return ponder_loss
 
