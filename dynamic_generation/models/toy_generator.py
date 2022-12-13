@@ -1,9 +1,7 @@
 import torch
-import torch.nn.functional as F
 from torch import nn
 from torchtyping import TensorType
 
-from dynamic_generation.experiments.train_base import BaseTrainer
 from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.utils.stability import safe_log
 
@@ -12,16 +10,9 @@ class ToyGenerator(nn.Module):
     """This generator evaluates the log likelihood by brute-force"""
 
     def __init__(
-        self,
-        trainer: BaseTrainer,
-        z_dim: int,
-        hidden_dim: int,
-        output_dim: int,
-        z_samples: int,
-        std: float,
+        self, z_dim: int, hidden_dim: int, output_dim: int, z_samples: int, std: float
     ):
         super().__init__()
-        self.trainer = trainer
         self.z_dim = z_dim
         self.hidden_dim = hidden_dim
         self.output_dim = output_dim

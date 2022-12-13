@@ -3,7 +3,6 @@ import torch.distributions as D
 from torch import nn
 from torchtyping import TensorType
 
-from dynamic_generation.experiments.train_base import BaseTrainer
 from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.models.mlp import MLP
 from dynamic_generation.models.ponder_module import GRUPonderModule, RNNPonderModule
@@ -91,7 +90,10 @@ class UniformBetaVAE(BaseVAE):
 
         self.encoder = MLP(enc_dims, activation=nn.GELU())
         self.decoder = MLP(dec_dims, activation=nn.GELU())
-        self.std = nn.parameter.Parameter(torch.tensor(1.0))
+
+        self.std: Tensor
+        self.register_buffer("std", torch.tensor(0.01))
+        # self.std = nn.parameter.Parameter(torch.tensor(1.0))
 
         self.register_buffer("prior_low", torch.zeros(z_dim))
         self.register_buffer("prior_high", torch.ones(z_dim))
@@ -101,13 +103,14 @@ class UniformBetaVAE(BaseVAE):
         return D.Uniform(self.prior_low, self.prior_high)
 
     def base_encode(self, x: Tensor) -> D.Distribution:
-        h = self.encoder(x) ** 2
+        h = self.encoder(x).sigmoid() * 400
         a, b = h.chunk(2, dim=-1)
         return D.Beta(a, b)
 
     def decode(self, z: TensorType["batch", "hidden"]):
         mean = self.decoder(z)
-        X_hat = D.Normal(loc=mean, scale=self.std)
+        cov = self.std**2 * torch.eye(self.input_dim, device=mean.device)
+        X_hat = D.MultivariateNormal(loc=mean, covariance_matrix=cov)
         return X_hat, {}
 
 
@@ -137,7 +140,8 @@ class DynamicVae(BaseVAE):
         enc_dims = [input_dim] + [enc_hidden_dim] * (enc_n_layers - 1) + [2 * z_dim]
         self.encoder = MLP(enc_dims, activation=nn.GELU())
 
-        ponder_module = RNNPonderModule(z_dim, dec_hidden_dim, input_dim, dec_n_layers)
+        ponder_module = GRUPonderModule(z_dim, dec_hidden_dim, input_dim, dec_n_layers)
+        # ponder_module = RNNPonderModule(z_dim, dec_hidden_dim, input_dim, dec_n_layers)
         self.decoder = PonderNet(
             epsilon=epsilon,
             lambda_p=lambda_p,
@@ -145,9 +149,10 @@ class DynamicVae(BaseVAE):
             N_max=N_max,
             ponder_module=ponder_module,
         )
-        # self.std: Tensor
-        # self.register_buffer("std", torch.tensor(0.001))
-        self.std = nn.parameter.Parameter(torch.tensor(1.0))
+
+        self.std: Tensor
+        self.register_buffer("std", torch.tensor(0.01))
+        # self.std = nn.parameter.Parameter(torch.tensor(1.0))
 
         self.prior_low: Tensor
         self.prior_high: Tensor
@@ -159,14 +164,14 @@ class DynamicVae(BaseVAE):
         return D.Uniform(self.prior_low, self.prior_high)
 
     def base_encode(self, x: Tensor) -> D.Distribution:
-        h = self.encoder(x).abs()
+        h = self.encoder(x).sigmoid() * 400
         a, b = h.chunk(2, dim=-1)
         return D.Beta(a, b)
 
     def decode(self, z: TensorType["batch", "hidden"]):
         means, halt_dist = self.decoder.forward(z)
         cov = self.std**2 * torch.eye(self.input_dim, device=means.device)
-        X_hats = D.MultivariateNormal(loc=means.sigmoid(), covariance_matrix=cov)
+        X_hats = D.MultivariateNormal(loc=means, covariance_matrix=cov)
         halt_dist = halt_dist.expand(X_hats.batch_shape[:-1])
         X_hat = CustomMixture(halt_dist, X_hats)
         return X_hat, {"halt_dist": halt_dist}
