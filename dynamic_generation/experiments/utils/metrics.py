@@ -1,94 +1,22 @@
-import abc
 from collections import defaultdict
 from contextlib import contextmanager
 from typing import Any
 
-import torch
-from torchtyping import TensorType
-
-
-def weighted_binary_accuracy(
-    pred: TensorType["batch", "samples"],
-    target: TensorType["batch", "samples"],
-    weight: TensorType["batch", "samples"],
-    logits: bool = True,
-    threshold: float = 0.5,
-):
-    assert pred.shape == target.shape == weight.shape
-
-    # check if `weight` is a valid distribution for each batch
-    weight_sum = weight.sum(-1)
-    assert torch.allclose(weight_sum, torch.ones_like(weight_sum))
-
-    if logits:
-        pred = pred.sigmoid()
-
-    pred_labels = pred > threshold
-    target_labels = target.bool()
-    correct = pred_labels == target_labels
-
-    weighted_correct = weight * correct
-    weighted_acc = weighted_correct.sum(-1).mean()
-
-    return weighted_acc
-
-
-class BaseAccumulator(abc.ABC):
-    @abc.abstractmethod
-    def __init__(self, init_value):
-        ...
-
-    @abc.abstractmethod
-    def update(self, value):
-        ...
-
-    @abc.abstractmethod
-    def compute(self):
-        ...
-
-
-class ReplaceAccumulator(BaseAccumulator):
-    def __init__(self, init_value):
-        self.value = init_value
-
-    def update(self, value):
-        self.value = value
-
-    def compute(self):
-        return self.value
-
-
-class MeanAccumulator(BaseAccumulator):
-    def __init__(self, init_value):
-        self.value = torch.as_tensor(init_value, dtype=torch.float32)
-        self.count = torch.tensor(1.0)
-
-    def update(self, value):
-        self.value = self.value + value
-        self.count = self.count + 1
-
-    def compute(self):
-        res = self.value / self.count
-        if res.numel() == 1:
-            res = res.squeeze()
-        return res.numpy()
-
-
-class SumAccumulator(BaseAccumulator):
-    def __init__(self, init_value):
-        self.value = torch.as_tensor(init_value)
-
-    def update(self, value):
-        self.value = self.value + value
-
-    def compute(self):
-        return self.value.numpy()
+from dynamic_generation.experiments.utils.accumulators import (
+    BaseAccumulator,
+    MaxAccumulator,
+    MeanAccumulator,
+    MinAccumulator,
+    ReplaceAccumulator,
+    StackAccumulator,
+    SumAccumulator,
+)
 
 
 class MetricsLogger:
     def __init__(self):
         self.logs: dict[str, dict[str, BaseAccumulator]] = defaultdict(dict)
-        self.current_group: str | None = None
+        self.current_group: str = "global"
 
     @contextmanager
     def capture(self, group_name: str):
@@ -97,11 +25,12 @@ class MetricsLogger:
         yield
         self.current_group = tmp
 
-    def log(self, k: str, v: Any, acc="replace", group: str | None = None):
+    def log(self, k: str, v: Any, acc="replace", group: str | None = None, **kwargs):
         if group is None:
             group = self.current_group
         assert group is not None
-        if k not in self.logs:
+
+        if k not in self.logs[group]:
             match acc:
                 case "replace":
                     acc_cls = ReplaceAccumulator
@@ -109,16 +38,25 @@ class MetricsLogger:
                     acc_cls = MeanAccumulator
                 case "sum":
                     acc_cls = SumAccumulator
+                case "max":
+                    acc_cls = MaxAccumulator
+                case "min":
+                    acc_cls = MinAccumulator
+                case "stack":
+                    acc_cls = StackAccumulator
                 case _:
                     raise ValueError()
-            self.logs[group][k] = acc_cls(v)
+            self.logs[group][k] = acc_cls(v, **kwargs)
         else:
             self.logs[group][k].update(v)
 
-    def collect(self, group: str):
+    def collect(self, group: str, clear=True):
         res = {}
         for k, v in self.logs[group].items():
             res[f"{group}/{k}"] = v.compute()
+
+        if clear:
+            self.clear(group)
         return res
 
     def clear(self, group: str):

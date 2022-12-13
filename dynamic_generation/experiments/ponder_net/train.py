@@ -11,10 +11,8 @@ from torchmetrics.functional.classification import binary_accuracy
 
 from dynamic_generation.datasets.parity import ParityDataModule
 from dynamic_generation.experiments.trainer import Trainer
-from dynamic_generation.experiments.utils.metrics import (
-    StackAccumulator,
-    global_metrics,
-)
+from dynamic_generation.experiments.utils.accumulators import StackAccumulator
+from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.experiments.utils.optimizers import load_optimizer
 from dynamic_generation.models.ponder_module import GRUPonderModule, RNNPonderModule
 from dynamic_generation.models.ponder_net import PonderNet
@@ -60,11 +58,11 @@ class PonderNetTrainer(Trainer):
 
             # forward pass
             with torch.autocast(device_type="cuda", dtype=self.dtype):
-            y, halt_dist = self.model(x)
-            y_pred = CustomMixture(
-                mixture_distribution=halt_dist,
-                component_distribution=D.Bernoulli(logits=y.squeeze(-1)),
-            )
+                y, halt_dist = self.model(x)
+                y_pred = CustomMixture(
+                    mixture_distribution=halt_dist,
+                    component_distribution=D.Bernoulli(logits=y.squeeze(-1)),
+                )
                 loss = self.model.loss(
                     y_true=y_true, y_pred=y_pred, halt_dist=halt_dist
                 )
@@ -76,9 +74,9 @@ class PonderNetTrainer(Trainer):
             # compute and clip grad norm
             self.scaler.unscale_(self.optimizer)
             if self.config.train.grad_norm_clip is not None:
-            grad_norm = nn.utils.clip_grad.clip_grad_norm_(
-                self.model.parameters(), self.config.train.grad_norm_clip
-            )
+                grad_norm = nn.utils.clip_grad.clip_grad_norm_(
+                    self.model.parameters(), self.config.train.grad_norm_clip
+                )
                 global_metrics.log("grad_norm", grad_norm.item(), "mean")
 
             # update parameters
