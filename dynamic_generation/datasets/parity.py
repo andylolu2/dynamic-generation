@@ -45,7 +45,7 @@ class ParityDataModule(BaseDataModule):
 def build_one(dim: int, min_n: int, max_n: int):
     assert 0 <= min_n <= max_n <= dim
 
-    # n ~ U(1, self.dim), where n is the number of 1 or -1
+    # n ~ U(min_n, max_n), where n is the number of 1 or -1
     thresh = torch.randint(min_n, max_n + 1, size=())
     x = torch.arange(dim) < thresh
 
@@ -57,8 +57,7 @@ def build_one(dim: int, min_n: int, max_n: int):
     x = x[torch.randperm(dim)]
 
     # count x to generate the labels
-    y = torch.abs(x).sum(dim=-1)
-    y = y % 2
+    y = (x == 1).sum() % 2
 
     return x, y
 
