@@ -1,5 +1,7 @@
+import tempfile
 from logging import Formatter
 from pathlib import Path
+from time import perf_counter
 from typing import Any, overload
 
 import matplotlib.pyplot as plt
@@ -20,6 +22,7 @@ from dynamic_generation.experiments.utils.actions import (
 from dynamic_generation.experiments.utils.wandb import wandb_run
 from dynamic_generation.types import Tensor, TrainState
 from dynamic_generation.utils.interrupt_handler import InterruptHandler
+from dynamic_generation.utils.stats import confidence_interval
 
 _CONFIG = config_flags.DEFINE_config_file("config")
 flags.mark_flag_as_required("config")
@@ -34,7 +37,7 @@ class Trainer:
         self.precision = config.precision
         match self.precision:
             case "full":
-        self.dtype = torch.float32
+                self.dtype = torch.float32
             case "mixed":
                 self.dtype = torch.float16
             case other:
@@ -77,17 +80,23 @@ class Trainer:
     def run(cls, argv):
         """To be called by absl.app.run"""
         config: Any = FrozenConfigDict(_CONFIG.value)
-        run = wandb_run(
-            dry_run=config.dry_run,  # type: ignore
-            project=config.project_name,
-            config=config.to_dict(),
-            tags=config.tags,
-            notes=config.notes,
-        )
-        with run:
-            exp_dir = Path("runs") / config.project_name / wandb.run.name
+
+        if config.benchmark.run:
+            exp_dir = Path(tempfile.gettempdir())
             trainer = cls(config, exp_dir)
-            trainer.train()
+            trainer.benchmark()
+        else:
+            run = wandb_run(
+                dry_run=config.dry_run,  # type: ignore
+                project=config.project_name,
+                config=config.to_dict(),
+                tags=config.tags,
+                notes=config.notes,
+            )
+            with run:
+                exp_dir = Path("runs") / config.project_name / wandb.run.name
+                trainer = cls(config, exp_dir)
+                trainer.train()
 
     @property
     def train_step(self) -> int:
@@ -138,6 +147,25 @@ class Trainer:
             while self.config.steps < 0 or self.train_step <= self.config.steps:
                 check_interrupt()
                 self.step()
+
+    def benchmark(self):
+        logging.info("Warming up...")
+        for _ in range(self.config.benchmark.warmup_steps):
+            self._step(next(self.train_loader))
+
+        logging.info("Running benchmark...")
+        times = np.zeros(self.config.benchmark.steps, np.float32)
+        with self.interrupt_handler as check_interrupt:
+            for i in range(len(times)):
+                start = perf_counter()
+                check_interrupt()
+                self._step(next(self.train_loader))
+
+                times[i] = perf_counter() - start
+
+        steps_per_s = 1 / times
+        lo, hi = confidence_interval(steps_per_s)
+        logging.info(f"Steps/s 95%: {lo:.4f} - {hi:.4f}s")
 
     def step(self):
         self._step(next(self.train_loader))
