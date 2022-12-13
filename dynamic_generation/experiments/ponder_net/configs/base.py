@@ -1,6 +1,6 @@
 from typing import Any
 
-from ml_collections.config_dict import FieldReference
+from ml_collections.config_dict import FieldReference, placeholder
 
 from dynamic_generation.experiments.utils.config import get_base_config
 
@@ -11,7 +11,7 @@ def get_ponder_net_config() -> Any:
     ds_dim = FieldReference(64)
 
     config.train = dict(
-        grad_norm_clip=1.0,
+        grad_norm_clip=placeholder(float),
     )
     config.model = dict(
         ponder_module_kwargs=dict(
@@ -22,7 +22,7 @@ def get_ponder_net_config() -> Any:
         ),
         ponder_net_kwargs=dict(
             epsilon=0.05,
-            lambda_p=0.7,
+            lambda_p=0.2,
             beta=0.01,
             N_max=20,
         ),
@@ -39,14 +39,14 @@ def get_ponder_net_config() -> Any:
         train_kwargs=dict(
             batch_size=128,
             size=-1,
-            min_n=0,
-            max_n=ds_dim,
+            min_n=1,
+            max_n=ds_dim.get(),
         ),
         eval_kwargs=dict(
             batch_size=128,
             size=12800,
-            min_n=0,
-            max_n=ds_dim,
+            min_n=1,
+            max_n=ds_dim.get(),
         ),
     )
 
