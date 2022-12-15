@@ -46,7 +46,7 @@ class TruncatedGeometric(FiniteDiscrete):
 
 
 class CustomMixture(D.MixtureSameFamily):
-    def sample_detailed(self, sample_shape=torch.Size()):
+    def sample_detailed(self, sample_shape=torch.Size(), method: str = "sample"):
         with torch.no_grad():
             sample_len = len(sample_shape)
             batch_len = len(self.batch_shape)
@@ -58,7 +58,14 @@ class CustomMixture(D.MixtureSameFamily):
             mix_shape = mix_sample.shape
 
             # component samples [n, B, k, E]
-            comp_samples = self.component_distribution.sample(sample_shape)
+            if method == "sample":
+                comp_samples = self.component_distribution.sample(sample_shape)
+            elif method == "mean":
+                comp_samples = self.component_distribution.mean
+                batch_shape = comp_samples.shape
+                comp_samples = comp_samples.expand(sample_shape + batch_shape)
+            else:
+                raise ValueError(f"Invalid method: {method}")
 
             # Gather along the k dimension
             mix_sample_r = mix_sample.reshape(
