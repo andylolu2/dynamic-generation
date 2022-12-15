@@ -46,12 +46,7 @@ class VAETrainer(Trainer):
 
             self.optimizer.zero_grad()
             loss.backward()
-
-            if self.config.train.grad_norm_clip is not None:
-                grad_norm = nn.utils.clip_grad.clip_grad_norm_(
-                    self.model.parameters(), self.config.train.grad_norm_clip
-                )
-                global_metrics.log("grad_norm", grad_norm.item(), "mean")
+            self.clip_grad(self.model.parameters(), self.config.train.grad_norm_clip)
             self.optimizer.step()
 
     @torch.inference_mode()

@@ -20,15 +20,10 @@ from dynamic_generation.utils.schedules import load_schedule
 class DynamicVAETrainer(Trainer):
     def __init__(self, config, exp_dir: Path):
         super().__init__(config, exp_dir)
+
         self.beta_schedule = load_schedule(**self.config.train.beta_schedule_kwargs)
-
-    @property
-    def model(self) -> DynamicVae:
-        return self.train_state["model"]
-
-    @property
-    def optimizer(self) -> Optimizer:
-        return self.train_state["optimizer"]
+        self.model: DynamicVae = self.train_state["model"]
+        self.optimizer: Optimizer = self.train_state["optimizer"]
 
     def initialize_state(self) -> TrainState:
         train_state = super().initialize_state()
@@ -52,22 +47,15 @@ class DynamicVAETrainer(Trainer):
             x = self.cast(item["x"])
             out = self.model(x)
 
-            self.optimizer.zero_grad()
             beta = self.beta_schedule(self.train_step)
             loss = self.model.loss(x, out, beta)
 
+            self.optimizer.zero_grad()
             loss.backward()
-            if self.config.train.grad_norm_clip is not None:
-                grad_norm = nn.utils.clip_grad.clip_grad_norm_(
-                    self.model.parameters(), self.config.train.grad_norm_clip
-                )
-                global_metrics.log("grad_norm", grad_norm.item(), "mean")
-
+            self.clip_grad(self.model.parameters(), self.config.train.grad_norm_clip)
             self.optimizer.step()
 
             global_metrics.log("beta", beta, "mean")
-            if "epoch" in item:
-                global_metrics.log("epoch", item["epoch"], "replace")
 
     @torch.inference_mode()
     def evaluate(self):

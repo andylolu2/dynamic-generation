@@ -54,16 +54,8 @@ class StaticImageVaeTrainer(Trainer):
             # backward pass
             self.optimizer.zero_grad()
             self.scaler.scale(loss).backward()
-
-            # compute and clip grad norm
             self.scaler.unscale_(self.optimizer)
-            if self.config.train.grad_norm_clip is not None:
-                grad_norm = nn.utils.clip_grad.clip_grad_norm_(
-                    self.model.parameters(), self.config.train.grad_norm_clip
-                )
-                global_metrics.log("grad_norm", grad_norm.item(), "mean")
-
-            # update parameters
+            self.clip_grad(self.model.parameters(), self.config.train.grad_norm_clip)
             self.scaler.step(self.optimizer)
             self.scaler.update()
 

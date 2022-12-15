@@ -10,6 +10,7 @@ import torch
 import wandb
 from absl import flags, logging
 from ml_collections import FrozenConfigDict, config_flags
+from torch import nn
 
 from dynamic_generation.datasets.data_module import DataModule
 from dynamic_generation.datasets.main import load_data_module
@@ -21,6 +22,7 @@ from dynamic_generation.utils.actions import (
     PeriodicSaveAction,
 )
 from dynamic_generation.utils.interrupt_handler import InterruptHandler
+from dynamic_generation.utils.metrics import global_metrics
 from dynamic_generation.utils.stats import confidence_interval
 from dynamic_generation.utils.wandb import wandb_run
 
@@ -187,6 +189,11 @@ class Trainer:
             return tensors[0].to(dtype=self.dtype, device=self.device)
         else:
             return tuple(t.to(dtype=self.dtype, device=self.device) for t in tensors)
+
+    def clip_grad(self, parameters, grad_norm_clip: float | None):
+        if grad_norm_clip is not None:
+            grad_norm = nn.utils.clip_grad.clip_grad_norm_(parameters, grad_norm_clip)
+            global_metrics.log("grad_norm", grad_norm.item(), "mean")
 
     def save(self, path: Path):
         state_to_save = {}
