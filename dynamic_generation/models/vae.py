@@ -5,8 +5,7 @@ import torch.distributions as D
 from torch import nn
 from torchtyping import TensorType
 
-from dynamic_generation.models.block_sequential import BlockSequential
-from dynamic_generation.models.blocks import LinearBlock
+from dynamic_generation.models.blocks import BlockSequential, LinearBlock
 from dynamic_generation.models.ponder_module import GRUPonderModule, RNNPonderModule
 from dynamic_generation.models.ponder_net import PonderNet
 from dynamic_generation.types import Tensor
@@ -31,7 +30,7 @@ class BaseVAE(nn.Module):
     def generate(self, n: int, device):
         z = self.prior.sample((n,)).to(device=device)  # type: ignore
         x, aux = self.decode(z)
-        return x.mean, aux
+        return x.mean, aux | {"z": z}
 
     def forward(self, x: Tensor):
         encoded = self.encode(x)
@@ -135,9 +134,7 @@ class DynamicVae(BaseVAE):
 
         enc_dims = [input_dim] + self.enc_dims + [2 * z_dim]
         self.encoder = BlockSequential(
-            enc_dims,
-            block=LinearBlock(post_block=nn.GELU()),
-            last_block=LinearBlock(),
+            enc_dims, block=LinearBlock(post_block=nn.GELU()), last_block=LinearBlock()
         )
 
         # ponder_module = GRUPonderModule(z_dim, dec_hidden_dim, input_dim, dec_n_layers)
@@ -179,7 +176,7 @@ class DynamicVae(BaseVAE):
         z = self.prior.sample((n,)).to(device=device)  # type: ignore
         x, aux = self.decode(z)
         sample, mix_sample = x.sample_detailed(method="mean")
-        return sample, aux | {"mix_sample": mix_sample}
+        return sample, aux | {"z": z, "mix_sample": mix_sample}
 
     def loss(self, x: Tensor, out: dict, beta: float = 1):
         loss = super().loss(x, out, beta)

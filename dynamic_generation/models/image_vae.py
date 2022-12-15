@@ -6,8 +6,7 @@ from torch import nn
 
 from dynamic_generation.types import Tensor
 
-from .block_sequential import BlockSequential
-from .blocks import LinearBlock
+from .blocks import BlockSequential, LinearBlock
 from .vae import BaseVAE
 
 
@@ -67,4 +66,4 @@ class ImageVae(BaseVAE):
     def generate(self, n: int, device):
         z = self.prior.sample((n,)).to(device=device)  # type: ignore
         x, aux = self.decode(z)
-        return x.base_dist.probs, aux
+        return x.base_dist.probs, aux | {"z": z}
