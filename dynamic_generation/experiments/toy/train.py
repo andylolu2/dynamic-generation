@@ -1,4 +1,3 @@
-import matplotlib.pyplot as plt
 import torch
 import wandb
 from absl import app
@@ -9,20 +8,19 @@ from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.experiments.utils.optimizers import load_optimizer
 from dynamic_generation.models.toy_generator import ToyGenerator
 from dynamic_generation.types import TrainState
+from dynamic_generation.utils.figure import new_figure
 
 
-class ToyGeneratorTrainer(Trainer):
-    @property
-    def model(self) -> ToyGenerator:
-        return self.train_state["model"]
+class ToyTrainer(Trainer):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
-    @property
-    def optimizer(self) -> Optimizer:
-        return self.train_state["optimizer"]
+        self.model: ToyGenerator = self.train_state["model"]
+        self.optimizer: Optimizer = self.train_state["optimizer"]
 
     def initialize_state(self) -> TrainState:
         train_state = super().initialize_state()
-        model = ToyGenerator(trainer=self, **self.config.model_kwargs)
+        model = ToyGenerator(**self.config.model_kwargs)
         optimizer = load_optimizer(
             params=model.parameters(), **self.config.optimizer_kwargs
         )
@@ -35,8 +33,7 @@ class ToyGeneratorTrainer(Trainer):
 
     def _step(self, item):
         with global_metrics.capture("train"):
-            x = item["data"]
-            x = self.cast(x)
+            x = self.cast(item["x"])
             loss = self.model.loss(x)
 
             self.optimizer.zero_grad()
@@ -52,8 +49,7 @@ class ToyGeneratorTrainer(Trainer):
 
         xs = []
         for item in self.eval_loader:
-            x = item["data"]
-            x = self.cast(x)
+            x = self.cast(item["x"])
             xs.append(x)
             _ = self.model.loss(x)
 
@@ -65,16 +61,18 @@ class ToyGeneratorTrainer(Trainer):
         data = x_hat.cpu().numpy()
 
         # plot results
-        fig, ax = plt.subplots()
-        ax.scatter(x=real[:, 0], y=real[:, 1], s=1, c="r", zorder=1, label="Real")
-        ax.scatter(x=data[:, 0], y=data[:, 1], s=1, c="b", zorder=2, label="Generated")
-        ax.set(box_aspect=1)
-        fig.tight_layout()
-
-        global_metrics.log("samples", wandb.Image(fig), "replace")
+        with new_figure(show=self.config.dry_run) as fig:
+            ax = fig.add_subplot(1, 1, 1)
+            ax.scatter(x=real[:, 0], y=real[:, 1], s=3, c="r", zorder=1, label="Real")
+            ax.scatter(
+                x=data[:, 0], y=data[:, 1], s=3, c="b", zorder=2, label="Generated"
+            )
+            ax.set(box_aspect=1)
+            fig.tight_layout()
+            global_metrics.log("samples", wandb.Image(fig), "replace")
 
         self.model.train()
 
 
 if __name__ == "__main__":
-    app.run(ToyGeneratorTrainer.run)
+    app.run(ToyTrainer.run)

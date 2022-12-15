@@ -9,7 +9,6 @@ from torch.cuda.amp.grad_scaler import GradScaler
 from torch.optim import Optimizer
 from torchmetrics.functional.classification import binary_accuracy
 
-from dynamic_generation.datasets.parity import ParityDataModule
 from dynamic_generation.experiments.trainer import Trainer
 from dynamic_generation.experiments.utils.accumulators import StackAccumulator
 from dynamic_generation.experiments.utils.metrics import global_metrics
@@ -25,8 +24,10 @@ class PonderNetTrainer(Trainer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        assert isinstance(self.data_module, ParityDataModule)
-        self.data_module: ParityDataModule
+        x_shape = self.data_module.shape["x"]
+        assert len(x_shape) == 1
+        self.ds_dim = x_shape[0]
+
         self.model: PonderNet = self.train_state["model"]
         self.optimizer: Optimizer = self.train_state["optimizer"]
         self.scaler: GradScaler = self.train_state["scaler"]
@@ -34,6 +35,7 @@ class PonderNetTrainer(Trainer):
     def initialize_state(self) -> TrainState:
         state = super().initialize_state()
 
+        assert self.data_module
         # ponder_module = GRUPonderModule(**self.config.model.ponder_module_kwargs)
         ponder_module = RNNPonderModule(**self.config.model.ponder_module_kwargs)
         model = PonderNet(
@@ -53,7 +55,7 @@ class PonderNetTrainer(Trainer):
 
     def _step(self, item):
         with global_metrics.capture("train"):
-            x, y_true = item["data"]
+            x, y_true = item["x"], item["y"]
             x, y_true = self.cast(x, y_true)
 
             # forward pass
@@ -101,7 +103,7 @@ class PonderNetTrainer(Trainer):
         num_steps = StackAccumulator(batched=True)
 
         for item in self.eval_loader:
-            x, y_true = item["data"]
+            x, y_true = item["x"], item["y"]
             x, y_true = self.cast(x, y_true)
             num_ones.update(x.abs().sum(-1))
 
@@ -122,14 +124,15 @@ class PonderNetTrainer(Trainer):
         num_ones = num_ones.compute().astype(np.int64)
         num_steps = num_steps.compute().astype(np.int64) + 1
 
-        n = self.data_module.dim
-
         with new_figure(show=self.config.dry_run) as fig:
             ax = fig.add_subplot(1, 1, 1)
             sns.histplot(
                 x=num_ones,
                 y=num_steps,
-                binrange=[(0, n), (0, self.config.model.ponder_net_kwargs.N_max)],
+                binrange=[
+                    (0, self.ds_dim),
+                    (0, self.config.model.ponder_net_kwargs.N_max),
+                ],
                 discrete=True,
                 ax=ax,
             )

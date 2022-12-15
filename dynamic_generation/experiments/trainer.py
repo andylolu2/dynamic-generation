@@ -11,7 +11,7 @@ import wandb
 from absl import flags, logging
 from ml_collections import FrozenConfigDict, config_flags
 
-from dynamic_generation.datasets.base import BaseDataModule
+from dynamic_generation.datasets.data_module import DataModule
 from dynamic_generation.datasets.main import load_data_module
 from dynamic_generation.experiments.utils.actions import (
     Action,
@@ -33,6 +33,12 @@ class Trainer:
         self.config = config
         self.exp_dir = exp_dir
 
+        # configure logging
+        formatter = Formatter(self.config.log.format, self.config.log.time_format)
+        logging.get_absl_handler().setFormatter(formatter)  # type: ignore
+        logging.set_verbosity(self.config.log.level)
+        np.set_printoptions(precision=self.config.log.float_precision)
+
         # setup data type
         self.precision = config.precision
         match self.precision:
@@ -53,28 +59,23 @@ class Trainer:
             self.device = torch.device("cpu")
         logging.info(f"Running with device: {self.device}")
 
-        self.train_state = self.initialize_state()
-        self.actions = self.initialize_actions()
-
         # setup data loaders
         dm = load_data_module(**self.config.dataset.dm_kwargs)
         self.data_module = dm
         self.train_loader = dm.train_loader(**self.config.dataset.train_kwargs)
         self.eval_loader = dm.eval_loader(**self.config.dataset.eval_kwargs)
 
+        # setup states
+        self.train_state = self.initialize_state()
+        self.actions = self.initialize_actions()
+
         # handle keyboard interrupts
         self.interrupt_handler = InterruptHandler(handler=self.handle_interrupt)
-
-        # configure logging
-        formatter = Formatter(self.config.log.format, self.config.log.time_format)
-        logging.get_absl_handler().setFormatter(formatter)  # type: ignore
-        logging.set_verbosity(self.config.log.level)
-        np.set_printoptions(precision=self.config.log.float_precision)
 
         # configure plotting
         plt.style.use("seaborn")
 
-        logging.info(self.config)
+        logging.info("\n" + str(self.config))
 
     @classmethod
     def run(cls, argv):
@@ -106,7 +107,7 @@ class Trainer:
         """This function is expected to be subclassed"""
         return {"step": 0}
 
-    def initialize_data_module(self) -> BaseDataModule:
+    def initialize_data_module(self) -> DataModule:
         """This function is expected to be subclassed"""
         raise NotImplementedError()
 
@@ -185,7 +186,7 @@ class Trainer:
         if len(tensors) == 1:
             return tensors[0].to(dtype=self.dtype, device=self.device)
         else:
-            return tuple(self.cast(t) for t in tensors)
+            return tuple(t.to(dtype=self.dtype, device=self.device) for t in tensors)
 
     def save(self, path: Path):
         state_to_save = {}

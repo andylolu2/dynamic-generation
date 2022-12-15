@@ -5,17 +5,22 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
 
-from dynamic_generation.datasets.base import BaseDataModule
+from dynamic_generation.datasets.data_module import DataModule
 from dynamic_generation.datasets.utils import infinite_loader
+from dynamic_generation.types import Shape
 
 
 @dataclass
-class LollipopDataModule(BaseDataModule):
+class LollipopDataModule(DataModule):
     std: float
     arm_len: float
     swirl_freq: float
     n_rotations: int
     swirl_prop: float
+
+    @property
+    def shape(self) -> dict[str, Shape]:
+        return {"x": (2,)}
 
     def dataset(self, size: int):
         return Lollipop(
@@ -70,7 +75,7 @@ class Lollipop(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        return {"data": self.data[idx]}
+        return {"x": self.data[idx]}
 
     def scale_shift(self, data: np.ndarray):
         data[:, 0] -= data[:, 0].min()
@@ -80,6 +85,9 @@ class Lollipop(Dataset):
         y_range = data[:, 1].ptp()
         scale = x_range if x_range > y_range else y_range
         data /= scale
+
+        padding = 4 * self.std  # 4 sigma
+        data = (1 - 2 * padding) * data + padding
 
         return data
 
@@ -103,16 +111,16 @@ class Lollipop(Dataset):
         noise = np.random.normal(scale=self.std, size=(self.size, 2))
         final += noise
 
-        # final score to ensure bounds
-        final = self.scale_shift(final)
-
         return final
 
 
 if __name__ == "__main__":
     ds = Lollipop(1000, std=0.02, swirl_prop=0.6)
+    data = ds[:]["x"]
 
-    plt.scatter(x=ds[:, 0]["data"], y=ds[:, 1]["data"], s=1)
+    plt.scatter(x=data[:, 0], y=data[:, 1], s=1)
+    plt.xlim([0, 1])
+    plt.ylim([0, 1])
     plt.gca().set_aspect("equal")
 
     plt.show()

@@ -4,13 +4,18 @@ from typing import Iterable, Iterator
 import torch
 from torch.utils.data import DataLoader, Dataset, IterableDataset
 
-from dynamic_generation.datasets.base import BaseDataModule
+from dynamic_generation.datasets.data_module import DataModule
 from dynamic_generation.datasets.utils import infinite_loader
+from dynamic_generation.types import Shape
 
 
 @dataclass
-class ParityDataModule(BaseDataModule):
+class ParityDataModule(DataModule):
     dim: int = 64
+
+    @property
+    def shape(self) -> dict[str, Shape]:
+        return {"x": (self.dim,), "y": ()}
 
     def train_loader(
         self,
@@ -71,7 +76,8 @@ class InfiniteParity(IterableDataset):
 
     def __iter__(self):
         while True:
-            yield {"data": build_one(self.dim, self.min_n, self.max_n)}
+            x, y = build_one(self.dim, self.min_n, self.max_n)
+            yield {"x": x, "y": y}
 
 
 class Parity(Dataset):
@@ -93,7 +99,7 @@ class Parity(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        return {"data": (self.xs[idx], self.ys[idx])}
+        return {"x": self.xs[idx], "y": self.ys[idx]}
 
     def _build(self):
         xs, ys = [], []

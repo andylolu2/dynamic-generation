@@ -5,15 +5,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
 
-from dynamic_generation.datasets.base import BaseDataModule
+from dynamic_generation.datasets.data_module import DataModule
 from dynamic_generation.datasets.utils import infinite_loader
+from dynamic_generation.types import Shape
 
 
 @dataclass
-class SwissRollDataModule(BaseDataModule):
+class SwissRollDataModule(DataModule):
     std: float
     t_offset: float
     t_len: float
+
+    @property
+    def shape(self) -> dict[str, Shape]:
+        return {"x": (2,)}
 
     def train_loader(self, batch_size: int, size: int) -> Iterator:
         assert size > 0
@@ -47,7 +52,7 @@ class SwissRoll(Dataset):
         return self.size
 
     def __getitem__(self, idx):
-        return {"data": self.data[idx]}
+        return {"x": self.data[idx]}
 
     def _build(self):
         t = self.t_len * np.random.rand(self.size) + self.t_offset
@@ -59,8 +64,9 @@ class SwissRoll(Dataset):
 
 if __name__ == "__main__":
     ds = SwissRoll(1000)
+    data = ds[:]["x"]
 
-    plt.scatter(x=ds[:, 0]["data"], y=ds[:, 1]["data"], s=2)
+    plt.scatter(x=data[:, 0], y=data[:, 1], s=2)
     plt.gca().set_aspect("equal")
 
     plt.show()
