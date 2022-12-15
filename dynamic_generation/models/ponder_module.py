@@ -75,7 +75,10 @@ class RecurrentPonderModule(PonderModule):
         _, digest = self.recur(x, h=None, steps=N)
         ys = self.output(digest)  # batch x ponder x dim
         halt_logits = self.halt_logits(digest).squeeze(-1)  # batch x ponder
-        halt_dist = FiniteDiscrete(logits=halt_logits)
+        unhalt_logits = -halt_logits  # same as logit(1 - sigmoid(halt_logits))
+
+        p_logits = unhalt_logits.cumsum(-1) - unhalt_logits + halt_logits
+        halt_dist = FiniteDiscrete(logits=p_logits)
         return ys, halt_dist
 
     def eps_forward(
@@ -119,6 +122,7 @@ class RNNPonderModule(RecurrentPonderModule):
         self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
         self.ys = nn.Linear(hidden_size, output_size)
         self.h_logits = nn.Linear(hidden_size, 1)
+        nn.init.constant_(self.h_logits.bias, 1.0)
 
     def recur(self, x: Tensor, h: Tensor | None, steps: int) -> tuple[Tensor, Tensor]:
         x = x.unsqueeze(1).expand((-1, steps, -1))
