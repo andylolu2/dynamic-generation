@@ -18,24 +18,33 @@ class PeriodicAction(Action):
     Helper class that calls `self.action` every `interval` steps of training.
     """
 
-    def __init__(self, interval: int):
+    def __init__(self, interval: int, skip_first: bool):
         self.interval = interval
+        self.skip_first = skip_first
 
     def run(self, step: int):
+        pass
+
+    def skip(self, step: int):
         pass
 
     def __call__(self, step: int):
         if self.interval < 0:
             return
+        elif step == 0 and self.skip_first:
+            self.skip(step=step)
         elif step % self.interval == 0:
             self.run(step=step)
 
 
 class PeriodicLogAction(PeriodicAction):
     def __init__(self, interval: int, group: str, dry_run: bool):
-        super().__init__(interval)
+        super().__init__(interval, skip_first=True)
         self.group = group
         self.dry_run = dry_run
+
+    def skip(self, step: int):
+        global_metrics.clear(self.group)
 
     def run(self, step: int):
         metrics = global_metrics.collect(self.group)
@@ -47,7 +56,7 @@ class PeriodicLogAction(PeriodicAction):
 
 class PeriodicEvalAction(PeriodicAction):
     def __init__(self, interval: int, eval_fn: Callable[[], None], dry_run: bool):
-        super().__init__(interval)
+        super().__init__(interval, skip_first=True)
         self.eval_fn = eval_fn
         self.dry_run = dry_run
 
@@ -70,7 +79,7 @@ class PeriodicSaveAction(PeriodicAction):
         save_fn: Callable[[Path], None],
         dry_run: bool,
     ):
-        super().__init__(interval)
+        super().__init__(interval, skip_first=True)
         self.save_dir = save_dir
         self.save_ext = save_ext
         self.save_fn = save_fn
