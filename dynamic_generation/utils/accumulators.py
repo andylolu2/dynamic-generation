@@ -3,7 +3,7 @@ import abc
 import torch
 
 
-class BaseAccumulator(abc.ABC):
+class Accumulator(abc.ABC):
     @abc.abstractmethod
     def __init__(self, init_value):
         ...
@@ -17,7 +17,7 @@ class BaseAccumulator(abc.ABC):
         ...
 
 
-class ReplaceAccumulator(BaseAccumulator):
+class ReplaceAccumulator(Accumulator):
     def __init__(self, init_value):
         self.value = init_value
 
@@ -28,7 +28,7 @@ class ReplaceAccumulator(BaseAccumulator):
         return self.value
 
 
-class MeanAccumulator(BaseAccumulator):
+class MeanAccumulator(Accumulator):
     def __init__(self, init_value, ignore_nan=True):
         self.value = torch.as_tensor(init_value, dtype=torch.float32)
         self.count = torch.tensor(1.0)
@@ -49,7 +49,7 @@ class MeanAccumulator(BaseAccumulator):
         return res.cpu().numpy()
 
 
-class SumAccumulator(BaseAccumulator):
+class SumAccumulator(Accumulator):
     def __init__(self, init_value, ignore_nan=True):
         self.value = torch.as_tensor(init_value)
         self.ignore_nan = ignore_nan
@@ -65,7 +65,7 @@ class SumAccumulator(BaseAccumulator):
         return self.value.cpu().numpy()
 
 
-class MinAccumulator(BaseAccumulator):
+class MinAccumulator(Accumulator):
     def __init__(self, init_value):
         self.value = torch.as_tensor(init_value)
 
@@ -76,7 +76,7 @@ class MinAccumulator(BaseAccumulator):
         return self.value.cpu().numpy()
 
 
-class MaxAccumulator(BaseAccumulator):
+class MaxAccumulator(Accumulator):
     def __init__(self, init_value):
         self.value = torch.as_tensor(init_value)
 
@@ -87,7 +87,7 @@ class MaxAccumulator(BaseAccumulator):
         return self.value.cpu().numpy()
 
 
-class StackAccumulator(BaseAccumulator):
+class StackAccumulator(Accumulator):
     def __init__(self, init_value=None, batched=False):
         self.value = []
         self.batched = batched

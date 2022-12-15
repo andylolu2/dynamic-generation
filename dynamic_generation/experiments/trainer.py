@@ -13,16 +13,16 @@ from ml_collections import FrozenConfigDict, config_flags
 
 from dynamic_generation.datasets.data_module import DataModule
 from dynamic_generation.datasets.main import load_data_module
-from dynamic_generation.experiments.utils.actions import (
+from dynamic_generation.types import Tensor, TrainState
+from dynamic_generation.utils.actions import (
     Action,
     PeriodicEvalAction,
     PeriodicLogAction,
     PeriodicSaveAction,
 )
-from dynamic_generation.experiments.utils.wandb import wandb_run
-from dynamic_generation.types import Tensor, TrainState
 from dynamic_generation.utils.interrupt_handler import InterruptHandler
 from dynamic_generation.utils.stats import confidence_interval
+from dynamic_generation.utils.wandb import wandb_run
 
 _CONFIG = config_flags.DEFINE_config_file("config")
 flags.mark_flag_as_required("config")

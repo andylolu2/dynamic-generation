@@ -10,14 +10,14 @@ from torch.optim import Optimizer
 from torchmetrics.functional.classification import binary_accuracy
 
 from dynamic_generation.experiments.trainer import Trainer
-from dynamic_generation.experiments.utils.accumulators import StackAccumulator
-from dynamic_generation.experiments.utils.metrics import global_metrics
-from dynamic_generation.experiments.utils.optimizers import load_optimizer
 from dynamic_generation.models.ponder_module import GRUPonderModule, RNNPonderModule
 from dynamic_generation.models.ponder_net import PonderNet
 from dynamic_generation.types import TrainState
+from dynamic_generation.utils.accumulators import StackAccumulator
 from dynamic_generation.utils.distributions import CustomMixture
 from dynamic_generation.utils.figure import new_figure
+from dynamic_generation.utils.metrics import global_metrics
+from dynamic_generation.utils.optimizers import load_optimizer
 
 
 class PonderNetTrainer(Trainer):

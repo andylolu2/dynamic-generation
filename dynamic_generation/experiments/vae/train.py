@@ -7,12 +7,12 @@ from torch import nn
 from torch.optim import Optimizer
 
 from dynamic_generation.experiments.trainer import Trainer
-from dynamic_generation.experiments.utils.metrics import global_metrics
-from dynamic_generation.experiments.utils.optimizers import load_optimizer
-from dynamic_generation.experiments.utils.schedules import load_schedule
 from dynamic_generation.models.vae import UniformBetaVAE
 from dynamic_generation.types import TrainState
 from dynamic_generation.utils.figure import new_figure
+from dynamic_generation.utils.metrics import global_metrics
+from dynamic_generation.utils.optimizers import load_optimizer
+from dynamic_generation.utils.schedules import load_schedule
 
 
 class VAETrainer(Trainer):

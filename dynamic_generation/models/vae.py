@@ -5,13 +5,13 @@ import torch.distributions as D
 from torch import nn
 from torchtyping import TensorType
 
-from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.models.block_sequential import BlockSequential
 from dynamic_generation.models.blocks import LinearBlock
 from dynamic_generation.models.ponder_module import GRUPonderModule, RNNPonderModule
 from dynamic_generation.models.ponder_net import PonderNet
 from dynamic_generation.types import Tensor
 from dynamic_generation.utils.distributions import CustomMixture
+from dynamic_generation.utils.metrics import global_metrics
 
 
 class BaseVAE(nn.Module):
@@ -80,17 +80,11 @@ class UniformBetaVAE(BaseVAE):
         enc_dims = [input_dim] + [hidden_dim] * (n_layers - 1) + [2 * z_dim]
         dec_dims = [z_dim] + [hidden_dim] * (n_layers - 1) + [input_dim]
 
-        def block_fn(in_dim, out_dim):
-            return nn.Sequential(nn.Linear(in_dim, out_dim), nn.GELU())
-
-        def last_block_fn(in_dim, out_dim):
-            return nn.Linear(in_dim, out_dim)
-
         self.encoder = BlockSequential(
-            enc_dims, block=block_fn, last_block=last_block_fn
+            enc_dims, block=LinearBlock(post_block=nn.GELU()), last_block=LinearBlock()
         )
         self.decoder = BlockSequential(
-            dec_dims, block=block_fn, last_block=last_block_fn
+            dec_dims, block=LinearBlock(post_block=nn.GELU()), last_block=LinearBlock()
         )
 
         self.std: Tensor

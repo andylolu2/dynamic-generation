@@ -2,8 +2,8 @@ from collections import defaultdict
 from contextlib import contextmanager
 from typing import Any
 
-from dynamic_generation.experiments.utils.accumulators import (
-    BaseAccumulator,
+from dynamic_generation.utils.accumulators import (
+    Accumulator,
     MaxAccumulator,
     MeanAccumulator,
     MinAccumulator,
@@ -15,7 +15,7 @@ from dynamic_generation.experiments.utils.accumulators import (
 
 class MetricsLogger:
     def __init__(self):
-        self.logs: dict[str, dict[str, BaseAccumulator]] = defaultdict(dict)
+        self.logs: dict[str, dict[str, Accumulator]] = defaultdict(dict)
         self.current_group: str = "global"
 
     @contextmanager

@@ -3,8 +3,8 @@ from typing import Callable, Protocol
 
 import wandb
 
-from dynamic_generation.experiments.utils.logging import print_metrics
-from dynamic_generation.experiments.utils.metrics import global_metrics
+from dynamic_generation.utils.logging import print_metrics
+from dynamic_generation.utils.metrics import global_metrics
 
 
 class Action(Protocol):

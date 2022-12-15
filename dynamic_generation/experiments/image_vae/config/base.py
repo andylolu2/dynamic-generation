@@ -2,7 +2,7 @@ from typing import Any
 
 from ml_collections.config_dict import placeholder
 
-from dynamic_generation.experiments.utils.config import get_base_config
+from dynamic_generation.utils.config import get_base_config
 
 
 def get_config() -> Any:

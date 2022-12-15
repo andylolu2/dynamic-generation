@@ -2,8 +2,8 @@ import torch
 import torch.distributions as D
 from torch import nn
 
-from dynamic_generation.experiments.utils.metrics import global_metrics
 from dynamic_generation.types import Tensor
+from dynamic_generation.utils.metrics import global_metrics
 from dynamic_generation.utils.stability import safe_log
 
 
