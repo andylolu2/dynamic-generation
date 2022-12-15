@@ -1,7 +1,8 @@
 from pathlib import Path
-from typing import Callable, Protocol
+from typing import Callable, Literal, Protocol
 
 import wandb
+from ml_collections import ConfigDict
 
 from dynamic_generation.utils.logging import print_metrics
 from dynamic_generation.utils.metrics import global_metrics
@@ -10,6 +11,19 @@ from dynamic_generation.utils.metrics import global_metrics
 class Action(Protocol):
     def __call__(self, step: int) -> None:
         ...
+
+
+class OnceAction(Action):
+    def __init__(self):
+        self.called = False
+
+    def run(self, step: int):
+        pass
+
+    def __call__(self, step: int) -> None:
+        if not self.called:
+            self.run(step)
+            self.called = True
 
 
 class PeriodicAction(Action):
@@ -96,3 +110,16 @@ class PeriodicSaveAction(PeriodicAction):
             # save new checkpoint
             file_name = str(step) + self.save_ext
             self.save_fn(self.save_dir / file_name)
+
+
+class SaveConfigAction(OnceAction):
+    def __init__(self, config: ConfigDict, save_path: Path, dry_run: bool):
+        super().__init__()
+        self.config = config
+        self.save_path = save_path
+        self.dry_run = dry_run
+
+    def run(self, step: int):
+        if not self.dry_run:
+            with open(self.save_path, "w") as f:
+                self.config.to_yaml(stream=f)

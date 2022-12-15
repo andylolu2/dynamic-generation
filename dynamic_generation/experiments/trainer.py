@@ -20,6 +20,7 @@ from dynamic_generation.utils.actions import (
     PeriodicEvalAction,
     PeriodicLogAction,
     PeriodicSaveAction,
+    SaveConfigAction,
 )
 from dynamic_generation.utils.interrupt_handler import InterruptHandler
 from dynamic_generation.utils.metrics import global_metrics
@@ -131,8 +132,13 @@ class Trainer:
             eval_fn=self.evaluate,
             dry_run=self.config.dry_run,
         )
+        save_config_action = SaveConfigAction(
+            config=self.config,
+            save_path=self.exp_dir / "config.yaml",
+            dry_run=self.config.dry_run,
+        )
 
-        return [log_action, save_action, eval_action]
+        return [log_action, save_action, eval_action, save_config_action]
 
     def _step(self, item):
         """This function is expected to be subclassed"""
