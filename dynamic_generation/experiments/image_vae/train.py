@@ -67,9 +67,6 @@ class StaticImageVaeTrainer(Trainer):
             self.scaler.step(self.optimizer)
             self.scaler.update()
 
-            if "epoch" in item:
-                global_metrics.log("epoch", item["epoch"])
-
     @torch.inference_mode()
     def evaluate(self):
         logging.info("Begin evaluation...")

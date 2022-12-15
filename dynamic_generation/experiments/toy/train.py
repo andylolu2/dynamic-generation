@@ -40,9 +40,6 @@ class ToyTrainer(Trainer):
             loss.backward()
             self.optimizer.step()
 
-            if "epoch" in item:
-                global_metrics.log("epoch", item["epoch"], "replace")
-
     @torch.inference_mode()
     def evaluate(self):
         self.model.eval()

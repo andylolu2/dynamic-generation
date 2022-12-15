@@ -90,8 +90,6 @@ class PonderNetTrainer(Trainer):
             accuracy = binary_accuracy(pred, target)
 
             global_metrics.log("accuracy", accuracy.item(), "mean")
-            if "epoch" in item:
-                global_metrics.log("epoch", item["epoch"])
 
     @torch.inference_mode()
     def evaluate(self):

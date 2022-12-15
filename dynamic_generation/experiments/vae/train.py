@@ -54,9 +54,6 @@ class VAETrainer(Trainer):
                 global_metrics.log("grad_norm", grad_norm.item(), "mean")
             self.optimizer.step()
 
-            if "epoch" in item:
-                global_metrics.log("epoch", item["epoch"], "replace")
-
     @torch.inference_mode()
     def evaluate(self):
         self.model.eval()
