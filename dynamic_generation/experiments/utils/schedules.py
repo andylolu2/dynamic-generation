@@ -47,9 +47,19 @@ class StepSchedule(Schedule):
             return y
 
 
+class ConstantSchedule(Schedule):
+    def __init__(self, value: float):
+        self.value = value
+
+    def __call__(self, step: int) -> float:
+        return self.value
+
+
 def load_schedule(name: str, *args, **kwargs):
     match name:
         case "step":
             return StepSchedule(*args, **kwargs)
+        case "constant":
+            return ConstantSchedule(*args, **kwargs)
         case _:
             raise ValueError(f"No such schedule: {name}")
