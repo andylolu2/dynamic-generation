@@ -16,7 +16,7 @@ from dynamic_generation.utils.accumulators import (
 class MetricsLogger:
     def __init__(self):
         self.logs: dict[str, dict[str, Accumulator]] = defaultdict(dict)
-        self.current_group: str = "global"
+        self.current_group: str | None = None
 
     @contextmanager
     def capture(self, group_name: str):
@@ -28,7 +28,9 @@ class MetricsLogger:
     def log(self, k: str, v: Any, acc="replace", group: str | None = None, **kwargs):
         if group is None:
             group = self.current_group
-        assert group is not None
+
+        if group is None:
+            return
 
         if k not in self.logs[group]:
             match acc:
