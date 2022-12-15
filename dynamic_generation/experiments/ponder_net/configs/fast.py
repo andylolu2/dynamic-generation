@@ -8,12 +8,7 @@ def get_config():
     config.save.every = 2000
     config.eval.every = 2000
 
-    config.model.ponder_net_kwargs = dict(
-        epsilon=0.05,
-        lambda_p=0.2,
-        beta=0.01,
-        N_max=20,
-    )
+    config.model.ponder_net_kwargs.lambda_p = 0.2
     config.model.ponder_module_kwargs.hidden_size = 64
 
     config.dataset.dm_kwargs.dim = 8
