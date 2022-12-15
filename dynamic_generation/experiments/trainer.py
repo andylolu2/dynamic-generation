@@ -81,6 +81,12 @@ class Trainer:
         logging.info("\n" + str(self.config))
 
     @classmethod
+    def load_model(cls, config, checkpoint: Path):
+        trainer = cls(config, Path(tempfile.gettempdir()))
+        trainer.load(checkpoint)
+        return trainer.train_state["model"]
+
+    @classmethod
     def run(cls, argv):
         """To be called by absl.app.run"""
         config: Any = FrozenConfigDict(_CONFIG.value)
