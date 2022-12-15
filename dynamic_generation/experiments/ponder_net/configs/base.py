@@ -25,6 +25,7 @@ def get_ponder_net_config() -> Any:
             lambda_p=0.2,
             beta=0.01,
             N_max=20,
+            average_halt_dist=True,
         ),
     )
     config.optimizer_kwargs = dict(

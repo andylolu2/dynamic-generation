@@ -21,6 +21,7 @@ class PonderNet(nn.Module):
         lambda_p: float,
         beta: float,
         N_max: int,
+        average_halt_dist: bool,
         ponder_module: PonderModule,
     ):
         """
@@ -36,6 +37,7 @@ class PonderNet(nn.Module):
         """
         super().__init__()
         self.N_max = N_max
+        self.average_halt_dist = average_halt_dist
         self.ponder_module = ponder_module
 
         # register buffers
@@ -64,7 +66,10 @@ class PonderNet(nn.Module):
         return TruncatedGeometric(self.lambda_p, length)
 
     def regularisation(
-        self, halt_dist: FiniteDiscrete, beta: Tensor | int = 1, average=False
+        self,
+        halt_dist: FiniteDiscrete,
+        beta: Tensor | int = 1,
+        average: bool = False,
     ):
         if average:
             average_halt_dist = halt_dist.average()
@@ -84,7 +89,9 @@ class PonderNet(nn.Module):
         halt_dist: FiniteDiscrete,
     ):
         target_loss = -y_pred.log_prob(y_true).mean()
-        ponder_loss = self.regularisation(halt_dist, self.beta)
+        ponder_loss = self.regularisation(
+            halt_dist, self.beta, average=self.average_halt_dist
+        )
         loss = target_loss + ponder_loss
 
         global_metrics.log("target_loss", target_loss.item(), "mean")
