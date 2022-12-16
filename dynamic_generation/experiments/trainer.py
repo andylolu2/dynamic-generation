@@ -2,12 +2,13 @@ import tempfile
 from logging import Formatter
 from pathlib import Path
 from time import perf_counter
-from typing import Any, overload
+from typing import Any, Literal, overload
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
+import yaml
 from absl import flags, logging
 from ml_collections import FrozenConfigDict, config_flags
 from torch import nn
@@ -32,19 +33,17 @@ flags.mark_flag_as_required("config")
 
 
 class Trainer:
-    def __init__(self, config, exp_dir: Path):
+    def __init__(
+        self,
+        config,
+        mode: Literal["train", "inference"] = "train",
+        exp_dir: Path | None = None,
+    ):
         self.config = config
         self.exp_dir = exp_dir
 
-        # configure logging
-        formatter = Formatter(self.config.log.format, self.config.log.time_format)
-        logging.get_absl_handler().setFormatter(formatter)  # type: ignore
-        logging.set_verbosity(self.config.log.level)
-        np.set_printoptions(precision=self.config.log.float_precision)
-
         # setup data type
-        self.precision = config.precision
-        match self.precision:
+        match config.precision:
             case "full":
                 self.dtype = torch.float32
             case "mixed":
@@ -52,7 +51,7 @@ class Trainer:
             case other:
                 raise ValueError(f"Unrecognised precision: {other}")
 
-        logging.info(f"Running with precision: {self.precision}")
+        logging.info(f"Running with precision: {config.precision}")
         logging.info(f"Running with dtype: {self.dtype}")
 
         # setup device
@@ -62,29 +61,25 @@ class Trainer:
             self.device = torch.device("cpu")
         logging.info(f"Running with device: {self.device}")
 
-        # setup data loaders
-        dm = load_data_module(**self.config.dataset.dm_kwargs)
-        self.data_module = dm
-        self.train_loader = dm.train_loader(**self.config.dataset.train_kwargs)
-        self.eval_loader = dm.eval_loader(**self.config.dataset.eval_kwargs)
+        if mode == "train":
+            # configure libraries
+            formatter = Formatter(self.config.log.format, self.config.log.time_format)
+            logging.get_absl_handler().setFormatter(formatter)  # type: ignore
+            logging.set_verbosity(self.config.log.level)
+            np.set_printoptions(precision=self.config.log.float_precision)
+            plt.style.use("seaborn")
 
-        # setup states
+            # setup internal objects
+            dm = load_data_module(**self.config.dataset.dm_kwargs)
+            self.data_module = dm
+            self.train_loader = dm.train_loader(**self.config.dataset.train_kwargs)
+            self.eval_loader = dm.eval_loader(**self.config.dataset.eval_kwargs)
+            self.actions = self.initialize_actions()
+            self.interrupt_handler = InterruptHandler(handler=self.handle_interrupt)
+
+            logging.info("\n" + str(self.config))
+
         self.train_state = self.initialize_state()
-        self.actions = self.initialize_actions()
-
-        # handle keyboard interrupts
-        self.interrupt_handler = InterruptHandler(handler=self.handle_interrupt)
-
-        # configure plotting
-        plt.style.use("seaborn")
-
-        logging.info("\n" + str(self.config))
-
-    @classmethod
-    def load_model(cls, config, checkpoint: Path):
-        trainer = cls(config, Path(tempfile.gettempdir()))
-        trainer.load(checkpoint)
-        return trainer.train_state["model"]
 
     @classmethod
     def run(cls, argv):
@@ -92,8 +87,7 @@ class Trainer:
         config: Any = FrozenConfigDict(_CONFIG.value)
 
         if config.benchmark.run:
-            exp_dir = Path(tempfile.gettempdir())
-            trainer = cls(config, exp_dir)
+            trainer = cls(config)
             trainer.benchmark()
         else:
             run = wandb_run(
@@ -105,7 +99,7 @@ class Trainer:
             )
             with run:
                 exp_dir = Path("runs") / config.project_name / wandb.run.name
-                trainer = cls(config, exp_dir)
+                trainer = cls(config, exp_dir=exp_dir)
                 trainer.train()
 
     @property
@@ -121,6 +115,8 @@ class Trainer:
         raise NotImplementedError()
 
     def initialize_actions(self) -> list[Action]:
+        assert self.exp_dir is not None
+
         log_action = PeriodicLogAction(
             interval=self.config.log.every,
             group="train",
@@ -184,10 +180,10 @@ class Trainer:
 
     def step(self):
         with global_metrics.capture("train"):
-        self._step(next(self.train_loader))
-        for action in self.actions:
-            action(self.train_step)
-        self.train_state["step"] += 1
+            self._step(next(self.train_loader))
+            for action in self.actions:
+                action(self.train_step)
+            self.train_state["step"] += 1
 
     @overload
     def cast(self, __tensor: Tensor) -> Tensor:
