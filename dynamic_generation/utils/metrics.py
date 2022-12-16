@@ -1,3 +1,4 @@
+import warnings
 from collections import defaultdict
 from contextlib import contextmanager
 from typing import Any
@@ -19,7 +20,7 @@ class MetricsLogger:
         self.current_group: str | None = None
 
     @contextmanager
-    def capture(self, group_name: str):
+    def capture(self, group_name: str | None):
         tmp = self.current_group
         self.current_group = group_name
         yield
@@ -30,6 +31,7 @@ class MetricsLogger:
             group = self.current_group
 
         if group is None:
+            warnings.warn(f"{k} is not being captured", UserWarning)
             return
 
         if k not in self.logs[group]:
