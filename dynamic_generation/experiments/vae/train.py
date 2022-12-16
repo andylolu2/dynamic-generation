@@ -1,10 +1,6 @@
-from pathlib import Path
-
 import torch
 import wandb
 from absl import app
-from torch import nn
-from torch.optim import Optimizer
 
 from dynamic_generation.experiments.trainer import Trainer
 from dynamic_generation.models.vae import UniformBetaVAE
@@ -16,13 +12,6 @@ from dynamic_generation.utils.schedules import load_schedule
 
 
 class VAETrainer(Trainer):
-    def __init__(self, config, exp_dir: Path):
-        super().__init__(config, exp_dir)
-
-        self.beta_schedule = load_schedule(**self.config.train.beta_schedule_kwargs)
-        self.model: UniformBetaVAE = self.train_state["model"]
-        self.optimizer: Optimizer = self.train_state["optimizer"]
-
     def initialize_state(self) -> TrainState:
         train_state = super().initialize_state()
         model = UniformBetaVAE(**self.config.model_kwargs)
@@ -34,19 +23,24 @@ class VAETrainer(Trainer):
 
         train_state["model"] = model
         train_state["optimizer"] = optimizer
+
+        self.beta_schedule = load_schedule(**self.config.train.beta_schedule_kwargs)
+        self.model = model
+        self.optimizer = optimizer
+
         return train_state
 
     def _step(self, item):
-            x = self.cast(item["x"])
-            out = self.model(x)
+        x = self.cast(item["x"])
+        out = self.model(x)
 
-            beta = self.beta_schedule(self.train_step)
-            loss = self.model.loss(x, out, beta)
+        beta = self.beta_schedule(self.train_step)
+        loss = self.model.loss(x, out, beta)
 
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.clip_grad(self.model.parameters(), self.config.train.grad_norm_clip)
-            self.optimizer.step()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.clip_grad(self.model.parameters(), self.config.train.grad_norm_clip)
+        self.optimizer.step()
 
     @torch.inference_mode()
     def evaluate(self):

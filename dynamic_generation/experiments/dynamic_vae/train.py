@@ -1,12 +1,8 @@
-from pathlib import Path
-
 import numpy as np
 import torch
 import wandb
 from absl import app
 from matplotlib import colors
-from torch import nn
-from torch.optim import Optimizer
 
 from dynamic_generation.experiments.trainer import Trainer
 from dynamic_generation.models.vae import DynamicVae
@@ -18,13 +14,6 @@ from dynamic_generation.utils.schedules import load_schedule
 
 
 class DynamicVAETrainer(Trainer):
-    def __init__(self, config, exp_dir: Path):
-        super().__init__(config, exp_dir)
-
-        self.beta_schedule = load_schedule(**self.config.train.beta_schedule_kwargs)
-        self.model: DynamicVae = self.train_state["model"]
-        self.optimizer: Optimizer = self.train_state["optimizer"]
-
     def initialize_state(self) -> TrainState:
         train_state = super().initialize_state()
 
@@ -40,6 +29,11 @@ class DynamicVAETrainer(Trainer):
 
         train_state["model"] = model
         train_state["optimizer"] = optimizer
+
+        self.beta_schedule = load_schedule(**self.config.train.beta_schedule_kwargs)
+        self.model = model
+        self.optimizer = optimizer
+
         return train_state
 
     def _step(self, item):

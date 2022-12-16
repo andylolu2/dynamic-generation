@@ -1,9 +1,7 @@
 import torch
 import wandb
 from absl import app, logging
-from torch import nn
 from torch.cuda.amp.grad_scaler import GradScaler
-from torch.optim import Optimizer
 
 from dynamic_generation.experiments.trainer import Trainer
 from dynamic_generation.models.image_vae import ImageVae
@@ -16,14 +14,6 @@ from dynamic_generation.utils.schedules import load_schedule
 
 
 class StaticImageVaeTrainer(Trainer):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.beta_schedule = load_schedule(**self.config.train.beta_schedule_kwargs)
-        self.model: ImageVae = self.train_state["model"]
-        self.optimizer: Optimizer = self.train_state["optimizer"]
-        self.scaler: GradScaler = self.train_state["scaler"]
-
     def initialize_state(self) -> TrainState:
         state = super().initialize_state()
         model = ImageVae(
@@ -32,31 +22,37 @@ class StaticImageVaeTrainer(Trainer):
         optimizer = load_optimizer(
             params=model.parameters(), **self.config.optimizer_kwargs
         )
+        scaler = GradScaler(enabled=(self.config.precision == "mixed"))
 
         model.to(device=self.device)
 
         state["model"] = model
         state["optimizer"] = optimizer
-        scaler = GradScaler(enabled=(self.precision == "mixed"))
         state["scaler"] = scaler
+
+        self.beta_schedule = load_schedule(**self.config.train.beta_schedule_kwargs)
+        self.model = model
+        self.optimizer = optimizer
+        self.scaler = scaler
+
         return state
 
     def _step(self, item):
-            x = self.cast(item["x"])
+        x = self.cast(item["x"])
 
-            # forward pass
-            with torch.autocast(device_type="cuda", dtype=self.dtype):
-                out = self.model(x)
-                beta = self.beta_schedule(self.train_step)
-                loss = self.model.loss(x, out, beta)
+        # forward pass
+        with torch.autocast(device_type="cuda", dtype=self.dtype):
+            out = self.model(x)
+            beta = self.beta_schedule(self.train_step)
+            loss = self.model.loss(x, out, beta)
 
-            # backward pass
-            self.optimizer.zero_grad()
-            self.scaler.scale(loss).backward()
-            self.scaler.unscale_(self.optimizer)
-            self.clip_grad(self.model.parameters(), self.config.train.grad_norm_clip)
-            self.scaler.step(self.optimizer)
-            self.scaler.update()
+        # backward pass
+        self.optimizer.zero_grad()
+        self.scaler.scale(loss).backward()
+        self.scaler.unscale_(self.optimizer)
+        self.clip_grad(self.model.parameters(), self.config.train.grad_norm_clip)
+        self.scaler.step(self.optimizer)
+        self.scaler.update()
 
     @torch.inference_mode()
     def evaluate(self):
