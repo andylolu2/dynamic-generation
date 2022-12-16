@@ -20,16 +20,16 @@ def wandb_run(dry_run: bool = False, *args, **kwargs):
 
 
 @overload
-def get_runs(entity: str, project: str, run_ids: int) -> Run:
+def load_runs(entity: str, project: str, run_ids: int) -> Run:
     ...
 
 
 @overload
-def get_runs(entity: str, project: str, run_ids: list[int]) -> list[Run]:
+def load_runs(entity: str, project: str, run_ids: list[int]) -> list[Run]:
     ...
 
 
-def get_runs(entity: str, project: str, run_ids: list[int] | int):
+def load_runs(entity: str, project: str, run_ids: list[int] | int):
     api = wandb.Api()
     singular = isinstance(run_ids, int)
 
