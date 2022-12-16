@@ -55,7 +55,6 @@ class PonderNetTrainer(Trainer):
         return state
 
     def _step(self, item):
-        with global_metrics.capture("train"):
             x, y_true = item["x"], item["y"]
             x, y_true = self.cast(x, y_true)
 
@@ -66,9 +65,7 @@ class PonderNetTrainer(Trainer):
                     mixture_distribution=halt_dist,
                     component_distribution=D.Bernoulli(logits=y.squeeze(-1)),
                 )
-                loss = self.model.loss(
-                    y_true=y_true, y_pred=y_pred, halt_dist=halt_dist
-                )
+            loss = self.model.loss(y_true=y_true, y_pred=y_pred, halt_dist=halt_dist)
 
             self.optimizer.zero_grad()
             self.scaler.scale(loss).backward()

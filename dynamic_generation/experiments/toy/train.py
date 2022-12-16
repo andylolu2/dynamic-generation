@@ -32,13 +32,12 @@ class ToyTrainer(Trainer):
         return train_state
 
     def _step(self, item):
-        with global_metrics.capture("train"):
-            x = self.cast(item["x"])
-            loss = self.model.loss(x)
+        x = self.cast(item["x"])
+        loss = self.model.loss(x)
 
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
 
     @torch.inference_mode()
     def evaluate(self):

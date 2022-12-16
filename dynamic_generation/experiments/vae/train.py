@@ -37,7 +37,6 @@ class VAETrainer(Trainer):
         return train_state
 
     def _step(self, item):
-        with global_metrics.capture("train"):
             x = self.cast(item["x"])
             out = self.model(x)
 

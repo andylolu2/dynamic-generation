@@ -43,19 +43,18 @@ class DynamicVAETrainer(Trainer):
         return train_state
 
     def _step(self, item):
-        with global_metrics.capture("train"):
-            x = self.cast(item["x"])
-            out = self.model(x)
+        x = self.cast(item["x"])
+        out = self.model(x)
 
-            beta = self.beta_schedule(self.train_step)
-            loss = self.model.loss(x, out, beta)
+        beta = self.beta_schedule(self.train_step)
+        loss = self.model.loss(x, out, beta)
 
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.clip_grad(self.model.parameters(), self.config.train.grad_norm_clip)
-            self.optimizer.step()
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.clip_grad(self.model.parameters(), self.config.train.grad_norm_clip)
+        self.optimizer.step()
 
-            global_metrics.log("beta", beta, "mean")
+        global_metrics.log("beta", beta, "mean")
 
     @torch.inference_mode()
     def evaluate(self):

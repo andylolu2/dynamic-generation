@@ -183,6 +183,7 @@ class Trainer:
         logging.info(f"Steps/s 95%: {lo:.4f} - {hi:.4f}s")
 
     def step(self):
+        with global_metrics.capture("train"):
         self._step(next(self.train_loader))
         for action in self.actions:
             action(self.train_step)
