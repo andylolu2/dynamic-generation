@@ -16,3 +16,22 @@ class DataModule(abc.ABC):
     @abc.abstractproperty
     def shape(self) -> dict[str, Shape]:
         ...
+
+
+class EmptyDataModule(DataModule):
+    def __init__(self):
+        super().__init__()
+
+    @property
+    def shape(self) -> dict[str, Shape]:
+        return {}
+
+    def train_loader(self) -> Iterator:
+        def iterator():
+            while True:
+                yield {}
+
+        return iterator()
+
+    def eval_loader(self) -> Iterable:
+        return []

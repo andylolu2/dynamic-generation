@@ -1,4 +1,4 @@
-from dynamic_generation.datasets.data_module import DataModule
+from dynamic_generation.datasets.data_module import DataModule, EmptyDataModule
 from dynamic_generation.datasets.lollipop import LollipopDataModule
 from dynamic_generation.datasets.mnist import MNISTDataModule
 from dynamic_generation.datasets.parity import ParityDataModule
@@ -15,6 +15,8 @@ def load_data_module(name: str, **dm_kwargs) -> DataModule:
             dm = LollipopDataModule(**dm_kwargs)
         case "mnist":
             dm = MNISTDataModule(**dm_kwargs)
+        case "empty":
+            dm = EmptyDataModule(**dm_kwargs)
         case other:
             raise ValueError(f"Not such dataset: {other}")
 
