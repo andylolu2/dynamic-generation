@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, Literal, Protocol
+from typing import Callable, Protocol
 
 import wandb
 from ml_collections import ConfigDict
@@ -121,5 +121,6 @@ class SaveConfigAction(OnceAction):
 
     def run(self, step: int):
         if not self.dry_run:
+            self.save_path.parent.mkdir(parents=True, exist_ok=True)
             with open(self.save_path, "w") as f:
-                self.config.to_yaml(stream=f)
+                f.write(str(self.config))
