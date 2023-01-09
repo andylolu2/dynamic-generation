@@ -218,8 +218,8 @@ class Trainer:
 
         logging.info(f"Saved states {list(state_to_save.keys())} to {path}")
 
-    def load(self, path: Path, map_location: str | None = None):
-        saved_state = torch.load(path, map_location=map_location)
+    def load(self, path: Path):
+        saved_state = torch.load(path, map_location=self.device)
         assert set(saved_state.keys()) == set(self.train_state.keys())
 
         for k, v in self.train_state.items():
