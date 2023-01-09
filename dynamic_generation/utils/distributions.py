@@ -1,8 +1,18 @@
+from typing import Literal
+
 import torch
 import torch.distributions as D
 
 from dynamic_generation.types import Tensor
-from dynamic_generation.utils.stability import safe_log
+from dynamic_generation.utils.torch import safe_log
+
+
+def deterministic_sample(dist: D.Distribution) -> Tensor:
+    match dist:
+        case D.ContinuousBernoulli():
+            return dist.probs  # type: ignore
+        case _:
+            return dist.mean
 
 
 class FiniteDiscrete(D.Categorical):
@@ -46,7 +56,11 @@ class TruncatedGeometric(FiniteDiscrete):
 
 
 class CustomMixture(D.MixtureSameFamily):
-    def sample_detailed(self, sample_shape=torch.Size(), method: str = "sample"):
+    def sample_detailed(
+        self,
+        sample_shape=torch.Size(),
+        mode: Literal["random", "deterministic"] = "random",
+    ):
         with torch.no_grad():
             sample_len = len(sample_shape)
             batch_len = len(self.batch_shape)
@@ -58,14 +72,14 @@ class CustomMixture(D.MixtureSameFamily):
             mix_shape = mix_sample.shape
 
             # component samples [n, B, k, E]
-            if method == "sample":
+            if mode == "random":
                 comp_samples = self.component_distribution.sample(sample_shape)
-            elif method == "mean":
-                comp_samples = self.component_distribution.mean
+            elif mode == "deterministic":
+                comp_samples = deterministic_sample(self.component_distribution)
                 batch_shape = comp_samples.shape
                 comp_samples = comp_samples.expand(sample_shape + batch_shape)
             else:
-                raise ValueError(f"Invalid method: {method}")
+                raise ValueError(f"Invalid method: {mode}")
 
             # Gather along the k dimension
             mix_sample_r = mix_sample.reshape(
