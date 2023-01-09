@@ -5,7 +5,6 @@ import torch.distributions as D
 import wandb
 from absl import app
 from torch.cuda.amp.grad_scaler import GradScaler
-from torch.optim import Optimizer
 from torchmetrics.functional.classification import binary_accuracy
 
 from dynamic_generation.experiments.trainer import Trainer
@@ -106,7 +105,7 @@ class PonderNetTrainer(Trainer):
                 x=num_ones,
                 y=num_steps,
                 binrange=[
-                    (0, self.ds_dim),
+                    (0, self.config.dataset.dm_kwargs.dim),
                     (0, self.config.model.ponder_net_kwargs.N_max),
                 ],
                 discrete=True,
