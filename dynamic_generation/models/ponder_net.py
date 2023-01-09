@@ -8,10 +8,11 @@ import torch.distributions as D
 from torch import nn
 from torchtyping import TensorType
 
-from dynamic_generation.models.ponder_module import PonderModule
 from dynamic_generation.types import Tensor
 from dynamic_generation.utils.distributions import FiniteDiscrete, TruncatedGeometric
 from dynamic_generation.utils.metrics import global_metrics
+
+from .ponder_module import PonderModule
 
 
 class PonderNet(nn.Module):

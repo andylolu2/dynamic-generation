@@ -5,12 +5,13 @@ import torch.distributions as D
 from torch import nn
 from torchtyping import TensorType
 
-from dynamic_generation.models.blocks import BlockSequential, LinearBlock
-from dynamic_generation.models.ponder_module import GRUPonderModule, RNNPonderModule
-from dynamic_generation.models.ponder_net import PonderNet
 from dynamic_generation.types import Tensor
 from dynamic_generation.utils.distributions import CustomMixture
 from dynamic_generation.utils.metrics import global_metrics
+
+from .mlp import MLP
+from .ponder_module import GRUPonderModule, RNNPonderModule
+from .ponder_net import PonderNet
 
 
 class BaseVAE(nn.Module):
@@ -76,15 +77,9 @@ class UniformBetaVAE(BaseVAE):
         self.input_dim = input_dim
         self.n_layers = n_layers
 
-        enc_dims = [input_dim] + [hidden_dim] * (n_layers - 1) + [2 * z_dim]
-        dec_dims = [z_dim] + [hidden_dim] * (n_layers - 1) + [input_dim]
-
-        self.encoder = BlockSequential(
-            enc_dims, block=LinearBlock(post_block=nn.GELU()), last_block=LinearBlock()
-        )
-        self.decoder = BlockSequential(
-            dec_dims, block=LinearBlock(post_block=nn.GELU()), last_block=LinearBlock()
-        )
+        middle_dims = [hidden_dim] * (n_layers - 1)
+        self.encoder = MLP([input_dim, *middle_dims, 2 * z_dim], activation="GELU")
+        self.decoder = MLP([z_dim, *middle_dims, input_dim], activation="GELU")
 
         self.std: Tensor
         self.register_buffer("std", torch.tensor(std))
@@ -132,10 +127,7 @@ class DynamicVae(BaseVAE):
         self.dec_n_layers = dec_n_layers
         self.input_dim = input_dim
 
-        enc_dims = [input_dim] + self.enc_dims + [2 * z_dim]
-        self.encoder = BlockSequential(
-            enc_dims, block=LinearBlock(post_block=nn.GELU()), last_block=LinearBlock()
-        )
+        self.encoder = MLP([input_dim, *self.enc_dims, 2 * z_dim], activation="GELU")
 
         # ponder_module = GRUPonderModule(z_dim, dec_hidden_dim, input_dim, dec_n_layers)
         ponder_module = RNNPonderModule(z_dim, dec_hidden_dim, input_dim, dec_n_layers)
@@ -175,7 +167,7 @@ class DynamicVae(BaseVAE):
     def generate(self, n: int, device):
         z = self.prior.sample((n,)).to(device=device)  # type: ignore
         x, aux = self.decode(z)
-        sample, mix_sample = x.sample_detailed(method="mean")
+        sample, mix_sample = x.sample_detailed(mode="deterministic")
         return sample, aux | {"z": z, "mix_sample": mix_sample}
 
     def loss(self, x: Tensor, out: dict, beta: float = 1):
