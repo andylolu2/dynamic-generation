@@ -17,16 +17,16 @@ class InterruptHandler:
 
     def __init__(self, handler: Callable[[], Any]):
         self.interrupted = False
-        self.orig_handler = None
+        self.original_handler = None
         self.handler = handler
 
     def __enter__(self):
-        self.orig_handler = signal.getsignal(signal.SIGINT)
+        self.original_handler = signal.getsignal(signal.SIGINT)
         signal.signal(signal.SIGINT, self.handle)
         return self.check
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        signal.signal(signal.SIGINT, self.orig_handler)
+        signal.signal(signal.SIGINT, self.original_handler)
         if exc_type == Breakout:
             self.handler()
             return True
@@ -34,7 +34,7 @@ class InterruptHandler:
 
     def handle(self, signal, frame):
         if self.interrupted:
-            self.orig_handler(signal, frame)
+            self.original_handler(signal, frame)  # type: ignore
         logging.info("Caught interrupt...")
         self.interrupted = True
 
