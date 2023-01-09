@@ -20,11 +20,17 @@ NUM_CLASSES = 10
 class MNISTDataModule(DataModule):
     data_path: Path
     size: int
+    range_: tuple[float, float]
 
     def __post_init__(self):
+        lo, hi = self.range_
         self.transform = torchvision.transforms.Compose(
             [
-                torchvision.transforms.ToTensor(),
+                torchvision.transforms.ToTensor(),  # range: [0,1]
+                torchvision.transforms.Normalize(
+                    mean=[-lo / (hi - lo)],
+                    std=[1 / (hi - lo)],
+                ),  # range: self.range_
                 torchvision.transforms.Resize((self.size, self.size)),
             ]
         )
@@ -76,7 +82,7 @@ if __name__ == "__main__":
     dm = MNISTDataModule(Path("data"), 32)
     loader = dm.train_loader(9, -1)
 
-    x, y = next(loader)["x"]
+    x = next(loader)["x"]
     img = tile_image(x)
     plt.imshow(img)
     plt.show()

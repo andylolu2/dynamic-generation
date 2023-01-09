@@ -35,6 +35,7 @@ def get_config() -> Any:
             name="mnist",
             data_path="./data",
             size=28,
+            range_=(0, 1),
         ),
         train_kwargs=dict(
             batch_size=256,
