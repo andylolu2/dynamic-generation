@@ -4,7 +4,7 @@ from torchtyping import TensorType
 
 from dynamic_generation.types import Tensor
 from dynamic_generation.utils.distributions import FiniteDiscrete
-from dynamic_generation.utils.stability import safe_log
+from dynamic_generation.utils.torch import safe_log
 
 
 class PonderModule(nn.Module):
@@ -149,6 +149,7 @@ class GRUPonderModule(RecurrentPonderModule):
         self.gru = nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
         self.ys = nn.Linear(hidden_size, output_size)
         self.h_logits = nn.Linear(hidden_size, 1)
+        nn.init.constant_(self.h_logits.bias, 1.0)
 
     def recur(self, x: Tensor, h: Tensor | None, steps: int) -> tuple[Tensor, Tensor]:
         x = x.unsqueeze(1).expand((-1, steps, -1))
