@@ -8,12 +8,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import wandb
-import yaml
 from absl import flags, logging
 from ml_collections import FrozenConfigDict, config_flags
 from torch import nn
 
-from dynamic_generation.datasets.data_module import DataModule
 from dynamic_generation.datasets.main import load_data_module
 from dynamic_generation.types import Tensor, TrainState
 from dynamic_generation.utils.actions import (
@@ -61,6 +59,9 @@ class Trainer:
             self.device = torch.device("cpu")
         logging.info(f"Running with device: {self.device}")
 
+        dm = load_data_module(**self.config.dataset.dm_kwargs)
+        self.data_module = dm
+
         if mode == "train":
             # configure libraries
             formatter = Formatter(self.config.log.format, self.config.log.time_format)
@@ -70,8 +71,6 @@ class Trainer:
             plt.style.use("seaborn")
 
             # setup internal objects
-            dm = load_data_module(**self.config.dataset.dm_kwargs)
-            self.data_module = dm
             self.train_loader = dm.train_loader(**self.config.dataset.train_kwargs)
             self.eval_loader = dm.eval_loader(**self.config.dataset.eval_kwargs)
             self.actions = self.initialize_actions()
@@ -87,8 +86,9 @@ class Trainer:
         config: Any = FrozenConfigDict(_CONFIG.value)
 
         if config.benchmark.run:
-            trainer = cls(config)
-            trainer.benchmark()
+            with tempfile.TemporaryDirectory() as temp_dir:
+                trainer = cls(config, exp_dir=Path(temp_dir))
+                trainer.benchmark()
         else:
             run = wandb_run(
                 dry_run=config.dry_run,  # type: ignore
@@ -109,10 +109,6 @@ class Trainer:
     def initialize_state(self) -> TrainState:
         """This function is expected to be subclassed"""
         return {"step": 0}
-
-    def initialize_data_module(self) -> DataModule:
-        """This function is expected to be subclassed"""
-        raise NotImplementedError()
 
     def initialize_actions(self) -> list[Action]:
         assert self.exp_dir is not None
