@@ -180,7 +180,10 @@ class Trainer:
 
     def step(self):
         with global_metrics.capture("train"):
+            start = perf_counter()
             self._step(next(self.train_loader))
+            global_metrics.log("time_per_step", perf_counter() - start, "mean")
+
             for action in self.actions:
                 action(self.train_step)
             self.train_state["step"] += 1
