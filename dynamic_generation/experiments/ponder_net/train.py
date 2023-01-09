@@ -3,8 +3,7 @@ import seaborn as sns
 import torch
 import torch.distributions as D
 import wandb
-from absl import app, logging
-from torch import nn
+from absl import app
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.optim import Optimizer
 from torchmetrics.functional.classification import binary_accuracy
@@ -74,8 +73,6 @@ class PonderNetTrainer(Trainer):
 
     @torch.inference_mode()
     def evaluate(self):
-        logging.info("Begin evaluation...")
-
         self.model.eval()
 
         num_ones = StackAccumulator(batched=True)

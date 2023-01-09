@@ -56,8 +56,6 @@ class StaticImageVaeTrainer(Trainer):
 
     @torch.inference_mode()
     def evaluate(self):
-        logging.info("Begin evaluation...")
-
         self.model.eval()
         reconstruction = None
 
