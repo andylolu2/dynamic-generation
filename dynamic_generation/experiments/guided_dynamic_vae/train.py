@@ -76,7 +76,7 @@ class GuidedDynamicVAETrainer(Trainer):
         X_hat = CustomMixture(halt_dist, X_hats)
 
         # generate samples & plot
-        x_hat, mix_sample = X_hat.sample_detailed(method="mean")
+        x_hat, mix_sample = X_hat.sample_detailed(mode="deterministic")
         x_hat = x_hat.cpu().numpy()
         mix_sample = mix_sample.cpu().numpy()
 
