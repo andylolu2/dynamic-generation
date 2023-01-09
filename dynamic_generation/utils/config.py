@@ -5,10 +5,10 @@ from ml_collections import ConfigDict
 from ml_collections.config_dict import placeholder
 
 
-def get_base_config(project_name: str) -> Any:
+def get_base_config() -> Any:
     config = ConfigDict()
 
-    config.project_name = project_name
+    config.project_name = placeholder(str, required=True)
     config.tags = placeholder(tuple)
     config.notes = placeholder(str)
     config.log = dict(

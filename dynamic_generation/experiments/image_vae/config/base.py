@@ -6,7 +6,8 @@ from dynamic_generation.utils.config import get_base_config
 
 
 def get_config() -> Any:
-    config = get_base_config("image-vae")
+    config = get_base_config()
+    config.project_name = "image-vae"
 
     config.log.every = 200
     config.save.every = -1

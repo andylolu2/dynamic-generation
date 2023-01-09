@@ -6,7 +6,8 @@ from dynamic_generation.utils.config import get_base_config
 
 
 def get_ponder_net_config() -> Any:
-    config = get_base_config("ponder-net-repro")
+    config = get_base_config()
+    config.project_name = "ponder-net-repro"
 
     ds_dim = FieldReference(64)
 

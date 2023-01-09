@@ -4,7 +4,8 @@ from dynamic_generation.utils.config import get_base_config
 
 
 def get_config():
-    config = get_base_config("dynamic-vae")
+    config = get_base_config()
+    config.project_name = "dynamic-vae"
 
     std = FieldReference(0.02)
 

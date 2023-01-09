@@ -4,7 +4,8 @@ from dynamic_generation.utils.config import get_base_config
 
 
 def get_config():
-    config = get_base_config("guided-dynamic-vae")
+    config = get_base_config()
+    config.project_name = "guided-dynamic-vae"
 
     config.log.every = 500
     config.save.every = 2000
